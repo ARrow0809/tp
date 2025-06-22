@@ -22,8 +22,6 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeyChange, onClose }
   const [showApiKey, setShowApiKey] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [clearSuccess, setClearSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [response, setResponse] = useState<{ status: 'success' | 'error'; message: string } | null>(null);
 
   // Load saved API keys and selected type from localStorage
   useEffect(() => {
@@ -56,49 +54,54 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeyChange, onClose }
     setSelectedApiType(type);
   };
 
-  // バリデーション関数
-  const validateApiKey = (key: string) => {
-    if (!key) return 'APIキーを入力してください。';
-    if (key.length < 20) return 'APIキーは20文字以上で入力してください。';
-    if (!/^[\w\-_=\.]+$/.test(key)) return 'APIキーは英数字・記号（-_=.）のみ利用可能です。';
-    return null;
-  };
-
   // Save API keys to localStorage
   const handleSaveApiKey = () => {
-    setError(null);
-    setResponse(null);
-    const validation = validateApiKey(apiKeys[selectedApiType]);
-    if (validation) {
-      setError(validation);
-      setResponse({ status: 'error', message: validation });
-      return;
-    }
     try {
+      // Encrypt API keys before saving to localStorage
       const encryptedKeys = encrypt(JSON.stringify(apiKeys));
       localStorage.setItem(LOCAL_STORAGE_API_KEYS, encryptedKeys);
       localStorage.setItem(LOCAL_STORAGE_SELECTED_API, selectedApiType);
-      onApiKeyChange(apiKeys[selectedApiType]);
-      setResponse({ status: 'success', message: 'APIキーを保存し、適用しました。' });
+      
+      // Apply the selected API key
+      const currentApiKey = apiKeys[selectedApiType];
+      if (currentApiKey) {
+        onApiKeyChange(currentApiKey);
+        
+        // ページをリロードして新しいAPIキーを適用
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      }
+      
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (error) {
       console.error('Error saving API keys to localStorage:', error);
-      setError('APIキーの保存中にエラーが発生しました。');
-      setResponse({ status: 'error', message: 'APIキーの保存中にエラーが発生しました。' });
     }
   };
 
   // Clear API keys from localStorage
   const handleClearApiKeys = () => {
-    if (window.confirm('本当に全てのAPIキーをクリアしますか？この操作は元に戻せません。')) {
+    if (window.confirm('APIキーをクリアしますか？この操作は元に戻せません。')) {
       try {
         localStorage.removeItem(LOCAL_STORAGE_API_KEYS);
-        setApiKeys({ gemini: '', openai: '', other: '' });
+        setApiKeys({
+          gemini: '',
+          openai: '',
+          other: ''
+        });
+        
+        // ページをリロードしてAPIキーのクリアを反映
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+        
         onApiKeyChange(null);
-        setResponse({ status: 'success', message: 'APIキーをクリアしました。' });
+        
+        setClearSuccess(true);
+        setTimeout(() => setClearSuccess(false), 3000);
       } catch (error) {
         console.error('Error clearing API keys from localStorage:', error);
-        setError('APIキーのクリア中にエラーが発生しました。');
-        setResponse({ status: 'error', message: 'APIキーのクリア中にエラーが発生しました。' });
       }
     }
   };
@@ -163,14 +166,11 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeyChange, onClose }
             onChange={handleApiKeyChange}
             placeholder="APIキーを入力してください"
             className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-500"
-            aria-invalid={!!error}
-            aria-describedby="api-key-error"
           />
           <button
             type="button"
             onClick={() => setShowApiKey(!showApiKey)}
             className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-            aria-label={showApiKey ? 'APIキーを非表示' : 'APIキーを表示'}
           >
             {showApiKey ? (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -186,9 +186,6 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeyChange, onClose }
           </button>
         </div>
         <p className="text-xs text-gray-400 mt-1">※ APIキーはローカルでのみ暗号化して保存され、外部には送信されません。</p>
-        {error && (
-          <div id="api-key-error" className="mt-2 p-2 bg-red-700/20 border border-red-700 text-red-300 rounded text-sm" aria-live="assertive">{error}</div>
-        )}
       </div>
 
       <div className="flex justify-between">
@@ -201,15 +198,21 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeyChange, onClose }
         <button
           onClick={handleSaveApiKey}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-          disabled={!!validateApiKey(apiKeys[selectedApiType])}
+          disabled={!apiKeys[selectedApiType]}
         >
           保存して適用
         </button>
       </div>
 
-      {response && (
-        <div className={`mt-4 p-2 border rounded text-sm ${response.status === 'success' ? 'bg-green-600/20 border-green-700 text-green-300' : 'bg-red-700/20 border-red-700 text-red-300'}`} aria-live="polite">
-          {response.message}
+      {saveSuccess && (
+        <div className="mt-4 p-2 bg-green-600/20 border border-green-700 text-green-300 rounded text-sm">
+          APIキーを保存し、適用しました。
+        </div>
+      )}
+
+      {clearSuccess && (
+        <div className="mt-4 p-2 bg-blue-600/20 border border-blue-700 text-blue-300 rounded text-sm">
+          APIキーをクリアしました。
         </div>
       )}
     </div>
