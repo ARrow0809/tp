@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, GenerateContentResponse, Part, GenerateContentParameters, Content as SDKContent, GenerationConfig, SafetySetting, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { MIDJOURNEY_PARAMS, GEMINI_TEXT_MODEL_NAME, IMAGEN_MODEL_NAME, QUALITY_JUNK_TAGS } from "../constants";
 import { extractTextFromGeminiResponseStructure } from './geminiHelpers';
@@ -6,14 +5,17 @@ import { extractTextFromGeminiResponseStructure } from './geminiHelpers';
 
 let ai: GoogleGenAI | null = null;
 
+const LOCAL_STORAGE_KEY = 'user_gemini_api_key';
+
 const getAiInstance = (): GoogleGenAI => {
-  if (!process.env.API_KEY) {
-    console.error("API_KEY is not set in process.env. Gemini related functions will fail.");
-    throw new Error("API_KEY 環境変数が設定されていません。");
+  // localStorageからAPIキーを取得
+  const userApiKey = typeof window !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_KEY) : null;
+  if (!userApiKey) {
+    alert('エラー: APIキーが設定されていません。設定画面からAPIキーを入力してください。');
+    throw new Error("API_KEY（ユーザーAPIキー）が設定されていません。");
   }
-  if (!ai) {
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  }
+  // インスタンスはAPIキーごとに再生成（ユーザー切替対応）
+  ai = new GoogleGenAI({ apiKey: userApiKey });
   return ai;
 };
 
@@ -79,7 +81,8 @@ export const callGemini = async (
     }
 
     if (safetySettingsParam) {
-        requestParams.safetySettings = safetySettingsParam;
+        if (!requestParams.config) requestParams.config = {};
+        requestParams.config.safetySettings = safetySettingsParam;
     }
 
 
@@ -126,7 +129,7 @@ export const callGemini = async (
     if (e.message === "AI_REQUEST_BLOCKED") {
         throw e;
     }
-    if (e.message?.startsWith("API_KEY 環境変数")) {
+    if (e.message?.startsWith("API_KEY（ユーザーAPIキー）が設定されていません。")) {
         throw e;
     }
     console.error("Gemini API call error:", e);
@@ -291,12 +294,7 @@ export const translateToEnglish = async (text: string): Promise<string> => {
 
 export const extractEnglishKeywordsFromJapaneseText = async (japaneseText: string): Promise<string> => {
   if (!japaneseText.trim()) return "";
-  const systemInstruction = `Extract a concise list of 10-20 English keywords suitable for AI image generation from the following Japanese text.
-  Output ONLY a comma-separated list of these English keywords.
-  Do not include numbering, explanations, markdown, or any prefix. Focus on nouns, adjectives, and key actions or visual elements.
-  Example Input: "沖縄の高級ホテルのビーチで、白いデッキチェアに仰向けに寝そべる、パステルカラーのビキニを着たツインテールの少女。濡れた体は光り、アンニュイな表情でこちらを見ている。"
-  Example Output: "okinawa, luxury hotel, beach, white deck chair, lying on back, pastel color bikini, twintails, girl, wet body, shiny skin, looking at viewer, ambiguous face"
-  Text: "${japaneseText}"`;
+  const systemInstruction = `Extract a concise list of 10-20 English keywords suitable for AI image generation from the following Japanese text.\n  Output ONLY a comma-separated list of these English keywords.\n  Do not include numbering, explanations, markdown, or any prefix. Focus on nouns, adjectives, and key actions or visual elements.\n  Example Input: "沖縄の高級ホテルのビーチで、白いデッキチェアに仰向けに寝そべる、パステルカラーのビキニを着たツインテールの少女。濡れた体は光り、アンニュイな表情でこちらを見ている。"\n  Example Output: "okinawa, luxury hotel, beach, white deck chair, lying on back, pastel color bikini, twintails, girl, wet body, shiny skin, looking at viewer, ambiguous face"\n  Text: "${japaneseText}"`;
   const keywords = await callGemini(japaneseText, systemInstruction);
   return keywords.trim();
 };
@@ -399,7 +397,7 @@ export const generateImageWithImagen = async (prompt: string): Promise<string> =
     if (e.message === "AI_REQUEST_BLOCKED_IMAGE") {
         throw new Error("AI_REQUEST_BLOCKED");
     }
-    if (e.message.startsWith("API_KEY 環境変数")) {
+    if (e.message.startsWith("API_KEY（ユーザーAPIキー）が設定されていません。")) {
         throw e;
     }
     console.error("Imagen API call error:", e);
