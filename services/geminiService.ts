@@ -5,12 +5,48 @@ import { MIDJOURNEY_PARAMS, GEMINI_TEXT_MODEL_NAME, IMAGEN_MODEL_NAME, QUALITY_J
 let ai: GoogleGenAI | null = null;
 
 const getAiInstance = (): GoogleGenAI => {
-  if (!process.env.API_KEY) {
-    console.error("API_KEY is not set in process.env. Gemini related functions will fail.");
-    throw new Error("API_KEY 環境変数が設定されていません。");
+  // APIキーを取得（ローカルストレージ優先）
+  let apiKey = null;
+  
+  // ローカルストレージからAPIキーを取得
+  if (typeof window !== 'undefined') {
+    try {
+      const apiKeysEncrypted = localStorage.getItem('secure_api_keys');
+      const selectedApiType = localStorage.getItem('selected_api_type') || 'gemini';
+      
+      if (apiKeysEncrypted) {
+        // 簡易的な復号化処理
+        const base64Decoded = atob(apiKeysEncrypted);
+        const ENCRYPTION_KEY = 'tagPromptBuilderSecureKey2023';
+        
+        let decrypted = '';
+        for (let i = 0; i < base64Decoded.length; i++) {
+          const charCode = base64Decoded.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
+          decrypted += String.fromCharCode(charCode);
+        }
+        
+        const decryptedKeys = JSON.parse(decrypted);
+        apiKey = decryptedKeys[selectedApiType];
+      }
+    } catch (error) {
+      console.error('Error retrieving API key from localStorage:', error);
+    }
   }
+  
+  // ローカルストレージになければ環境変数から取得
+  if (!apiKey) {
+    apiKey = process.env.API_KEY;
+  }
+  
+  // APIキーがない場合はエラー
+  if (!apiKey) {
+    console.error("API_KEY is not set. Gemini related functions will fail.");
+    throw new Error("APIキーが設定されていません。APIキー設定ボタンからAPIキーを設定してください。");
+  }
+  
+  // AIインスタンスの初期化（一度だけ）
   if (!ai) {
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    ai = new GoogleGenAI({ apiKey });
   }
   return ai;
 };
@@ -90,8 +126,8 @@ const callGemini = async (
     if (e.message === "AI_REQUEST_BLOCKED") { // Check for the special marker
         throw e; // Re-throw for App.tsx to handle specifically
     }
-    if (e.message.startsWith("API_KEY 環境変数")) {
-        throw e;
+    if (e.message.includes("API_KEY") || e.message.includes("APIキー")) {
+        throw new Error("APIキーが設定されていないか無効です。APIキー設定ボタンからAPIキーを設定してください。");
     }
     console.error("Gemini API call error:", e);
     throw new Error(`Gemini API呼び出しエラー: ${e.message || e.toString()}`);
@@ -430,8 +466,8 @@ export const generateImageWithImagen = async (prompt: string): Promise<string> =
     if (e.message === "AI_REQUEST_BLOCKED_IMAGE") {
         throw new Error("AI_REQUEST_BLOCKED"); // Normalize for App.tsx
     }
-    if (e.message.startsWith("API_KEY 環境変数")) {
-        throw e;
+    if (e.message.includes("API_KEY") || e.message.includes("APIキー")) {
+        throw new Error("APIキーが設定されていないか無効です。APIキー設定ボタンからAPIキーを設定してください。");
     }
     console.error("Imagen API call error:", e);
     throw new Error(`Imagen API呼び出しエラー: ${e.message || e.toString()}`);
