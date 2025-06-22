@@ -10,6 +10,8 @@ import PromptOutputArea from './components/PromptOutputArea';
 import PersonaThemeModal from './components/TemplateModal'; 
 import ImageGenerationModal from './components/ImageGenerationModal';
 import HistoryPanel from './components/HistoryPanel'; // Import HistoryPanel
+import LoginScreen from './components/LoginScreen'; // Import LoginScreen
+import SecureLoginScreen from './components/SecureLoginScreen'; // Import SecureLoginScreen
 import { 
   generateJapaneseDescription, 
   generateImagePromptNaturalLanguage, 
@@ -58,6 +60,9 @@ const formatLabels: Record<OutputFormat, string> = {
 };
 
 const App: React.FC = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<string>('');
+  
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
   const [activeTagCategoryId, setActiveTagCategoryId] = useState<string | null>(
     CATEGORIES.length > 0 ? CATEGORIES[0].id : null
@@ -112,6 +117,38 @@ const App: React.FC = () => {
     loadHistory();
   }, [loadHistory]);
 
+  // Handle logout function defined early to avoid circular dependency
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem("userId");
+    localStorage.removeItem("login");
+    localStorage.removeItem("loginTime");
+    localStorage.removeItem("expiryTime");
+    setIsLoggedIn(false);
+    setCurrentUser('');
+  }, []);
+
+  // Check login status and session expiration on component mount
+  useEffect(() => {
+    const loginStatus = localStorage.getItem("login");
+    const storedUserId = localStorage.getItem("userId");
+    const expiryTime = localStorage.getItem("expiryTime");
+    
+    if (loginStatus === "true" && storedUserId) {
+      // Check if session has expired
+      if (expiryTime) {
+        const currentTime = new Date().getTime();
+        if (currentTime > parseInt(expiryTime)) {
+          // Session expired, log out
+          handleLogout();
+          return;
+        }
+      }
+      
+      setIsLoggedIn(true);
+      setCurrentUser(storedUserId);
+    }
+  }, [handleLogout]);
+
   useEffect(() => {
     if (process.env.API_KEY) {
       setApiKeyStatus('APIキー検出済み');
@@ -119,6 +156,12 @@ const App: React.FC = () => {
       setApiKeyStatus('警告: APIキーが見つかりません。Gemini連携機能（説明生成、翻訳、画像読取り、ペルソナ作成、画像生成等）は利用できません。');
     }
   }, []);
+  
+  // Handle login
+  const handleLogin = (userId: string) => {
+    setIsLoggedIn(true);
+    setCurrentUser(userId);
+  };
 
   const addHistoryEntry = useCallback((itemDetails: Omit<HistoryItem, 'id' | 'timestamp'>) => {
     const newItem: HistoryItem = {
@@ -1216,6 +1259,11 @@ const App: React.FC = () => {
   }, [updateAndSortSelectedTags]);
 
 
+  // If not logged in, show secure login screen
+  if (!isLoggedIn) {
+    return <SecureLoginScreen onLogin={handleLogin} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-3 sm:p-6 md:p-8">
       <input type="file" accept="image/*" ref={imageInputRef} onChange={handleImageFileChange} style={{ display: 'none' }} disabled={isLoading || isGeneratingImage || isGeneratingAllImages} />
@@ -1224,10 +1272,25 @@ const App: React.FC = () => {
       <div className="max-w-5xl mx-auto space-y-6 md:space-y-8">
         <header className="mb-6 md:mb-10">
           <div className="flex justify-between items-center">
-            <div className="w-14 md:w-16"></div> 
+            <div className="w-14 md:w-16">
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-md hover:bg-gray-700 transition-colors"
+                title="ログアウト"
+                aria-label="ログアウト"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-6 h-6 text-gray-400">
+                  <path fillRule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" />
+                  <path fillRule="evenodd" d="M19 10a.75.75 0 00-.75-.75H8.704l1.048-.943a.75.75 0 10-1.004-1.114l-2.5 2.25a.75.75 0 000 1.114l2.5 2.25a.75.75 0 101.004-1.114l-1.048-.943h9.546A.75.75 0 0019 10z" />
+                </svg>
+              </button>
+            </div>
             <div className="flex-1 text-center">
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-100">タグ選択式プロンプトビルダー</h1>
-              <p className="text-sm sm:text-base text-gray-400 mt-2">タグを選択・生成してAI画像用のプロンプトを作成しましょう</p>
+              <p className="text-sm sm:text-base text-gray-400 mt-2">
+                タグを選択・生成してAI画像用のプロンプトを作成しましょう
+                <span className="ml-2 text-xs text-blue-400">({currentUser}としてログイン中)</span>
+              </p>
             </div>
             <div className="flex flex-col items-center w-14 md:w-16"> 
               <button
