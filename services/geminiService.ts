@@ -5,43 +5,27 @@ import { MIDJOURNEY_PARAMS, GEMINI_TEXT_MODEL_NAME, IMAGEN_MODEL_NAME, QUALITY_J
 let ai: GoogleGenAI | null = null;
 
 const getAiInstance = (): GoogleGenAI => {
-  // APIキーを取得する優先順位:
-  // 1. process.env.API_KEY (環境変数)
-  // 2. localStorage から復号化して取得 (ユーザー設定)
-  let apiKey = process.env.API_KEY;
+  // APIキーを取得（ローカルストレージ優先）
+  let apiKey = null;
   
-  // process.env.API_KEY が 'stored-key-exists' の場合、実際のキーをlocalStorageから取得
-  if (apiKey === 'stored-key-exists' && typeof window !== 'undefined') {
+  // ローカルストレージからAPIキーを取得
+  if (typeof window !== 'undefined') {
     try {
       const apiKeysEncrypted = localStorage.getItem('secure_api_keys');
       const selectedApiType = localStorage.getItem('selected_api_type') || 'gemini';
       
       if (apiKeysEncrypted) {
-        // 暗号化されたAPIキーを復号化
-        // 注: この実装では簡易的な暗号化を使用しているため、完全に安全ではありません
-        const decryptApiKey = (encryptedText: string): string => {
-          try {
-            // Base64デコード
-            const base64Decoded = atob(encryptedText);
-            
-            // 簡易的な暗号化キー
-            const ENCRYPTION_KEY = 'tagPromptBuilderSecureKey2023';
-            
-            // XOR復号化
-            let result = '';
-            for (let i = 0; i < base64Decoded.length; i++) {
-              const charCode = base64Decoded.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
-              result += String.fromCharCode(charCode);
-            }
-            
-            return result;
-          } catch (error) {
-            console.error('Decryption error:', error);
-            return '';
-          }
-        };
+        // 簡易的な復号化処理
+        const base64Decoded = atob(apiKeysEncrypted);
+        const ENCRYPTION_KEY = 'tagPromptBuilderSecureKey2023';
         
-        const decryptedKeys = JSON.parse(decryptApiKey(apiKeysEncrypted));
+        let decrypted = '';
+        for (let i = 0; i < base64Decoded.length; i++) {
+          const charCode = base64Decoded.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
+          decrypted += String.fromCharCode(charCode);
+        }
+        
+        const decryptedKeys = JSON.parse(decrypted);
         apiKey = decryptedKeys[selectedApiType];
       }
     } catch (error) {
@@ -49,11 +33,18 @@ const getAiInstance = (): GoogleGenAI => {
     }
   }
   
-  if (!apiKey || apiKey === 'stored-key-exists') {
-    console.error("API_KEY is not set. Gemini related functions will fail.");
-    throw new Error("API_KEY 環境変数が設定されていません。APIキー設定ボタンからAPIキーを設定してください。");
+  // ローカルストレージになければ環境変数から取得
+  if (!apiKey) {
+    apiKey = process.env.API_KEY;
   }
   
+  // APIキーがない場合はエラー
+  if (!apiKey) {
+    console.error("API_KEY is not set. Gemini related functions will fail.");
+    throw new Error("APIキーが設定されていません。APIキー設定ボタンからAPIキーを設定してください。");
+  }
+  
+  // AIインスタンスの初期化（一度だけ）
   if (!ai) {
     ai = new GoogleGenAI({ apiKey });
   }
