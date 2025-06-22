@@ -4,9 +4,9 @@ interface LoginScreenProps {
   onLogin: (userId: string) => void;
 }
 
-// 実際のパスワード: "tagp0622"
-// 簡易的なハッシュ化の代わりに直接比較
-const CORRECT_PASSWORD = "tagp0622";
+// 環境変数からパスワードを取得
+// .envファイルに LOGIN_PASSWORD=tagp0622 を設定
+const CORRECT_PASSWORD = process.env.LOGIN_PASSWORD || "tagp0622"; // フォールバック値として元のパスワードを設定
 
 const SecureLoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [userId, setUserId] = useState('');
