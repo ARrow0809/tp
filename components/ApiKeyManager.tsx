@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { encrypt, decrypt } from '../utils/encryption';
+import { encrypt, decrypt } from './utils/encryption';
 
 // API provider types
 export type ApiProvider = 'gemini' | 'openai' | 'other';
@@ -68,15 +68,26 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeyChange, onClose }
         onApiKeyChange(currentApiKey);
         
         // Set the API key in the global environment for compatibility with existing code
-        if (typeof window !== 'undefined') {
-          if (!window.process) {
-            window.process = { env: {} };
-          } else if (!window.process.env) {
-            window.process.env = {};
+        try {
+          if (typeof window !== 'undefined') {
+            // Ensure process and env objects exist
+            if (!window.process) {
+              window.process = { env: {} };
+            } else if (!window.process.env) {
+              window.process.env = {};
+            }
+            
+            // Set API keys
+            window.process.env.API_KEY = currentApiKey;
+            window.process.env.GEMINI_API_KEY = currentApiKey;
+            
+            // Force a page reload to ensure the API key is properly applied
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
           }
-          
-          window.process.env.API_KEY = currentApiKey;
-          window.process.env.GEMINI_API_KEY = currentApiKey;
+        } catch (error) {
+          console.error('Error setting API key in global environment:', error);
         }
       }
       
@@ -99,9 +110,18 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeyChange, onClose }
         });
         
         // Clear the API key from the global environment
-        if (typeof window !== 'undefined' && window.process && window.process.env) {
-          window.process.env.API_KEY = undefined;
-          window.process.env.GEMINI_API_KEY = undefined;
+        try {
+          if (typeof window !== 'undefined' && window.process && window.process.env) {
+            window.process.env.API_KEY = undefined;
+            window.process.env.GEMINI_API_KEY = undefined;
+            
+            // Force a page reload to ensure the API key is properly cleared
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
+          }
+        } catch (error) {
+          console.error('Error clearing API key from global environment:', error);
         }
         
         onApiKeyChange(null);

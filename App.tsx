@@ -151,11 +151,40 @@ const App: React.FC = () => {
     }
   }, [handleLogout]);
 
+  // Check API key status on component mount
   useEffect(() => {
-    if (process.env.API_KEY) {
-      setApiKeyStatus('APIキー検出済み');
-    } else {
-      setApiKeyStatus('警告: APIキーが見つかりません。Gemini連携機能（説明生成、翻訳、画像読取り、ペルソナ作成、画像生成等）は利用できません。');
+    try {
+      // Check if API key exists in localStorage
+      const apiKeysEncrypted = localStorage.getItem('secure_api_keys');
+      const selectedApiType = localStorage.getItem('selected_api_type');
+      
+      if (apiKeysEncrypted && selectedApiType) {
+        // API key exists in localStorage, set status to detected
+        setApiKeyStatus('APIキー検出済み');
+        
+        // Try to apply the API key from localStorage
+        if (typeof window !== 'undefined') {
+          if (!window.process) {
+            window.process = { env: {} };
+          } else if (!window.process.env) {
+            window.process.env = {};
+          }
+          
+          // We don't decrypt the key here as it's handled by ApiKeyManager
+          // This just ensures the app knows an API key is available
+          window.process.env.API_KEY = 'stored-key-exists';
+          window.process.env.GEMINI_API_KEY = 'stored-key-exists';
+        }
+      } else if (process.env.API_KEY) {
+        // API key exists in environment variables
+        setApiKeyStatus('APIキー検出済み');
+      } else {
+        // No API key found
+        setApiKeyStatus('警告: APIキーが見つかりません。Gemini連携機能（説明生成、翻訳、画像読取り、ペルソナ作成、画像生成等）は利用できません。');
+      }
+    } catch (error) {
+      console.error('Error checking API key status:', error);
+      setApiKeyStatus('警告: APIキーの確認中にエラーが発生しました。');
     }
   }, []);
   
