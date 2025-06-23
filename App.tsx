@@ -382,32 +382,24 @@ const App: React.FC = () => {
                 break;
             }
             
-            // プロンプト強化機能の処理
+            // プロンプト強化機能の処理 - シンプル化して安定性を向上
             if (name.startsWith('enhance:') && categoryId === 'input') {
                 const textToEnhance = name.substring(8).trim();
                 if (textToEnhance) {
                     setLoadingMessage('プロンプトを強化中...');
                     try {
-                        // AIによるプロンプト強化処理
+                        // AIによるプロンプト強化処理 - シンプル化したプロンプト
                         const enhancePrompt = `
                             以下のテキストをAI画像生成に適したプロンプトに強化してください。
                             元のテキスト: "${textToEnhance}"
                             
                             以下の点を考慮して、より詳細で視覚的なプロンプトにしてください:
-                            - 視覚的な詳細（色、質感、形状など）を追加
-                            - 光の状態や雰囲気を追加
-                            - 構図や視点を明確に
-                            - 芸術的なスタイルや参照を追加
+                            - 視覚的な詳細（色、質感、形状など）
+                            - 光の状態や雰囲気
+                            - 構図や視点
+                            - 芸術的なスタイル
                             
-                            強化したプロンプトはカンマ区切りで出力してください。英語で出力してください。
-                            
-                            例えば「赤い髪,少女,アイドル」という入力に対しては以下のような出力が期待されます：
-                            "Red hair, cute Japanese teenage girl, idol costume, smiling, standing on bright stage, holding microphone, glitter and spotlight, anime style, fine eyes, frilly dress, twin-tailed hair, dynamic pose"
-                            
-                            「森,湖,夕日」という入力に対しては以下のような出力が期待されます：
-                            "Dense forest, tranquil lake, golden sunset, silhouetted trees, reflective water surface, orange and purple sky, peaceful atmosphere, birds flying, mountain backdrop, cinematic view, high resolution landscape photography"
-                            
-                            入力テキストの内容を想像して、ある程度の創造性を持って詳細を追加してください。ただし、入力の本質的な内容は保持してください。
+                            強化したプロンプトは英語でカンマ区切りで出力してください。
                         `;
                         
                         // AIに強化を依頼
@@ -418,8 +410,14 @@ const App: React.FC = () => {
                             let japaneseEnhancedPrompt = '';
                             try {
                                 japaneseEnhancedPrompt = await translateToJapanese(enhancedPrompt);
+                                
+                                // 日本語の説明文を作成 - 強化されたプロンプトの説明を追加
+                                const japaneseDescription = `【AIによる説明】\n${japaneseEnhancedPrompt}\n\n【生成されたプロンプト】\n${enhancedPrompt}`;
+                                setJapaneseDescription(japaneseDescription);
                             } catch (e) {
                                 console.error('Translation error:', e);
+                                // 翻訳に失敗した場合は英語のみ表示
+                                setJapaneseDescription(`【生成されたプロンプト】\n${enhancedPrompt}`);
                                 japaneseEnhancedPrompt = enhancedPrompt;
                             }
                             
@@ -427,8 +425,9 @@ const App: React.FC = () => {
                             const enhancedTags = enhancedPrompt.split(',').map(tag => tag.trim()).filter(tag => tag);
                             const japaneseEnhancedTags = japaneseEnhancedPrompt.split(',').map(tag => tag.trim()).filter(tag => tag);
                             
-                            // 各タグを追加
-                            for (let i = 0; i < enhancedTags.length; i++) {
+                            // 各タグを追加 (最大5個まで)
+                            const maxTags = Math.min(enhancedTags.length, 5);
+                            for (let i = 0; i < maxTags; i++) {
                                 if (currentSelectedTagsSnapshot.length + newTagsBatch.length >= MAX_TOKENS) {
                                     break;
                                 }
@@ -444,12 +443,9 @@ const App: React.FC = () => {
                                 newTagsBatch.push(enhancedTag);
                             }
                             
-                            // 強化されたプロンプト全体を日本語説明として保存
-                            setJapaneseDescription(enhancedPrompt);
-                            
-                            // 強化されたプロンプト全体を生成プロンプトとして設定
+                            // 各モデル用のプロンプトを生成
                             const currentPrompts: GeneratedPrompts = {
-                                stableDiffusion: enhancedPrompt,
+                                stableDiffusion: STABLE_DIFFUSION_QUALITY_PREFIX + enhancedPrompt,
                                 midjourney: `${enhancedPrompt}${MIDJOURNEY_PARAMS}`,
                                 imagePrompt: enhancedPrompt,
                                 yaml: YAML.stringify({
@@ -469,7 +465,8 @@ const App: React.FC = () => {
                         }
                     } catch (err) {
                         console.error('プロンプト強化エラー:', err);
-                        setError('プロンプト強化に失敗しました。通常のタグとして追加します。');
+                        // エラーメッセージをより具体的に
+                        setError('プロンプト強化に失敗しました。シンプルな内容で再試行してください。');
                         
                         // エラーの場合は元のテキストをそのまま追加
                         const newTag = await addTagWithTranslation(textToEnhance, categoryId, true);
@@ -1463,22 +1460,35 @@ const App: React.FC = () => {
 
 
       setLoadingMessage('ImagePrompt (自然言語)を生成中...');
-      // 日本語の説明文を直接英語に翻訳して使用する
+      // シンプル化: 日本語の説明文を直接英語に翻訳して使用する
       let translatedPrompt = '';
       try {
+        // 日本語説明を英語に翻訳
         translatedPrompt = await translateToEnglish(newJapaneseDescription);
-        if (!translatedPrompt) {
-          // 翻訳に失敗した場合はAIによるプロンプト生成を使用
+        
+        // 翻訳に失敗した場合や空の場合は、より安定したプロンプト生成を使用
+        if (!translatedPrompt || translatedPrompt.trim().length < 10) {
           translatedPrompt = await generateImagePromptNaturalLanguage(basePromptForAI, sourceWasPinginfo && isSensitiveFilterEnabled);
+        }
+        
+        // 日本語説明文に英語のプロンプトを追加して表示
+        if (newJapaneseDescription) {
+          // 既存の説明文に英語プロンプトを追加
+          setJapaneseDescription(`${newJapaneseDescription}\n\n【生成されたプロンプト (AIによる説明)】\n${translatedPrompt}`);
         }
       } catch (err) {
         console.error('Translation error:', err);
-        // エラーが発生した場合はAIによるプロンプト生成を使用
+        // エラーが発生した場合はより安定した方法でプロンプト生成
         translatedPrompt = await generateImagePromptNaturalLanguage(basePromptForAI, sourceWasPinginfo && isSensitiveFilterEnabled);
+        
+        // エラー時も英語プロンプトを表示
+        if (newJapaneseDescription) {
+          setJapaneseDescription(`${newJapaneseDescription}\n\n【生成されたプロンプト (AIによる説明)】\n${translatedPrompt}`);
+        }
       }
       
       // 敏感な単語をフィルタリング
-      if (sourceWasPinginfo && isSensitiveFilterEnabled) {
+      if (isSensitiveFilterEnabled) {
         translatedPrompt = filterSensitiveWords(translatedPrompt, BANNED_WORDS);
       }
       
