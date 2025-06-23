@@ -81,10 +81,8 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeyChange, onClose }
             window.process.env.API_KEY = currentApiKey;
             window.process.env.GEMINI_API_KEY = currentApiKey;
             
-            // Force a page reload to ensure the API key is properly applied
-            setTimeout(() => {
-              window.location.reload();
-            }, 500);
+            // Notify that API key has been set without forcing a page reload
+            console.log('API key has been set successfully');
           }
         } catch (error) {
           console.error('Error setting API key in global environment:', error);
