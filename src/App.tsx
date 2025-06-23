@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import YAML from 'yaml';
 import { Tag, OutputFormat, GeneratedPrompts, PersonaTheme as PersonaThemeType, Category, HistoryItem, GeneratedImageItem } from './types';
@@ -1351,6 +1350,21 @@ const App: React.FC = () => {
     setShowHistoryPanel(false); 
   }, [updateAndSortSelectedTags, historyItems]);
 
+  // キャラクター読込用の関数を定義
+  const handleLoadCharacter = (lockedTagIds: string[]) => {
+    // 1. 最初のロックタグのカテゴリに切り替え
+    if (lockedTagIds.length > 0) {
+      const firstTag = ALL_TAGS_WITH_CATEGORY_ID.find(tag => tag.id === lockedTagIds[0]);
+      if (firstTag) {
+        setActiveTagCategoryId(firstTag.categoryId);
+      }
+    }
+    // 2. ロックのみ表示を解除
+    setShowLockedOnlyFilter(false);
+    // 3. lockedTagIdsに含まれるタグのみをロック状態でセット（不要なタグは除外）
+    const lockedTags = ALL_TAGS_WITH_CATEGORY_ID.filter(tag => lockedTagIds.includes(tag.id)).map(tag => ({ ...tag, isLocked: true }));
+    updateAndSortSelectedTags(lockedTags);
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-3 sm:p-6 md:p-8">
@@ -1430,6 +1444,7 @@ const App: React.FC = () => {
           showLockedOnlyFilter={showLockedOnlyFilter}
           onToggleShowLockedOnlyFilter={handleToggleShowLockedOnlyFilter}
           onUnlockAllTags={handleUnlockAllTags}
+          onLoadCharacter={handleLoadCharacter}
         />
 
         <TagSelector

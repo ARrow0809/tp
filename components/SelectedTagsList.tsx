@@ -1,7 +1,7 @@
-
 import React from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { Tag, Category as CategoryType } from '../types';
+import { SavedCharacter } from '../types';
 import TagChip from './TagChip';
 
 interface SelectedTagsAreaProps {
@@ -19,6 +19,7 @@ interface SelectedTagsAreaProps {
   showLockedOnlyFilter: boolean; // New prop for filter state
   onToggleShowLockedOnlyFilter: () => void; // New prop for filter toggle
   onUnlockAllTags: () => void; // New prop for unlocking all
+  onLoadCharacter: (lockedTagIds: string[]) => void; // New prop for loading character
 }
 
 const reorder = <T,>(list: T[], startIndex: number, endIndex: number): T[] => {
@@ -27,6 +28,8 @@ const reorder = <T,>(list: T[], startIndex: number, endIndex: number): T[] => {
   result.splice(endIndex, 0, removed);
   return result;
 };
+
+const CHARACTER_STORAGE_KEY = 'savedCharactersV1';
 
 const SelectedTagsArea: React.FC<SelectedTagsAreaProps> = ({
   selectedTags,
@@ -43,7 +46,82 @@ const SelectedTagsArea: React.FC<SelectedTagsAreaProps> = ({
   showLockedOnlyFilter,
   onToggleShowLockedOnlyFilter,
   onUnlockAllTags,
+  onLoadCharacter,
 }) => {
+  const [characterName, setCharacterName] = React.useState('');
+  const [savedCharacters, setSavedCharacters] = React.useState<SavedCharacter[]>([]);
+  const [showCharacterList, setShowCharacterList] = React.useState(false);
+  const [renameIndex, setRenameIndex] = React.useState<number | null>(null);
+  const [renameValue, setRenameValue] = React.useState('');
+
+  // Load from localStorage on mount
+  React.useEffect(() => {
+    const raw = localStorage.getItem(CHARACTER_STORAGE_KEY);
+    if (raw) {
+      try {
+        setSavedCharacters(JSON.parse(raw));
+      } catch {
+        setSavedCharacters([]);
+      }
+    }
+  }, []);
+
+  // Save to localStorage when savedCharacters changes
+  React.useEffect(() => {
+    localStorage.setItem(CHARACTER_STORAGE_KEY, JSON.stringify(savedCharacters));
+  }, [savedCharacters]);
+
+  // Save current locked tags as a character
+  const handleSaveCharacter = () => {
+    const lockedTags = selectedTags.filter(t => t.isLocked).map(t => t.id);
+    if (!characterName.trim()) {
+      alert('保存名を入力してください');
+      return;
+    }
+    if (lockedTags.length === 0) {
+      alert('ロック中のタグがありません');
+      return;
+    }
+    if (savedCharacters.some(c => c.name === characterName.trim())) {
+      alert('同じ名前のキャラクターが既に存在します');
+      return;
+    }
+    setSavedCharacters([...savedCharacters, { name: characterName.trim(), lockedTags }]);
+    setCharacterName('');
+    setShowCharacterList(true);
+  };
+
+  // Load a character's locked tags
+  const handleLoadCharacter = (lockedTagIds: string[]) => {
+    onLoadCharacter(lockedTagIds);
+    setShowCharacterList(false);
+  };
+
+  // Delete a character
+  const handleDeleteCharacter = (idx: number) => {
+    if (!window.confirm('本当に削除しますか？')) return;
+    setSavedCharacters(savedCharacters.filter((_, i) => i !== idx));
+  };
+
+  // Start renaming
+  const handleStartRename = (idx: number) => {
+    setRenameIndex(idx);
+    setRenameValue(savedCharacters[idx].name);
+  };
+
+  // Confirm rename
+  const handleConfirmRename = (idx: number) => {
+    if (!renameValue.trim()) return;
+    setSavedCharacters(savedCharacters.map((c, i) => i === idx ? { ...c, name: renameValue.trim() } : c));
+    setRenameIndex(null);
+    setRenameValue('');
+  };
+
+  // Cancel rename
+  const handleCancelRename = () => {
+    setRenameIndex(null);
+    setRenameValue('');
+  };
 
   const tagsToDisplay = showLockedOnlyFilter 
     ? selectedTags.filter(tag => tag.isLocked) 
@@ -116,6 +194,68 @@ const SelectedTagsArea: React.FC<SelectedTagsAreaProps> = ({
 
   return (
     <div className="p-4 md:p-6 bg-gray-800 rounded-xl shadow-lg">
+      {/* キャラクター保存・読込UI */}
+      <div className="mb-4">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <input
+            type="text"
+            className="px-2 py-1 rounded border border-gray-600 bg-gray-900 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+            placeholder="保存名を入力 (例: 夏制服のミユ)"
+            value={characterName}
+            onChange={e => setCharacterName(e.target.value)}
+            style={{ minWidth: 180 }}
+          />
+          <button
+            onClick={handleSaveCharacter}
+            className="px-3 py-1 text-xs font-medium bg-teal-600 hover:bg-teal-500 text-white rounded transition-colors"
+          >
+            キャラクター保存
+          </button>
+          <button
+            onClick={() => setShowCharacterList(v => !v)}
+            className="px-3 py-1 text-xs font-medium bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+          >
+            {showCharacterList ? '保存リストを隠す' : '保存リストを表示'}
+          </button>
+        </div>
+        {showCharacterList && (
+          <div className="bg-gray-700 rounded p-3 mt-1 max-w-full overflow-x-auto">
+            {savedCharacters.length === 0 && (
+              <div className="text-gray-400 text-xs">保存済みキャラクターはありません</div>
+            )}
+            {savedCharacters.length > 0 && (
+              <ul className="space-y-1">
+                {savedCharacters.map((c, idx) => (
+                  <li key={c.name + idx} className="flex items-center gap-2 text-sm text-gray-100">
+                    {renameIndex === idx ? (
+                      <>
+                        <input
+                          type="text"
+                          className="px-1 py-0.5 rounded border border-gray-500 bg-gray-800 text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+                          value={renameValue}
+                          onChange={e => setRenameValue(e.target.value)}
+                          style={{ minWidth: 100 }}
+                        />
+                        <button onClick={() => handleConfirmRename(idx)} className="px-2 py-0.5 text-xs bg-teal-600 hover:bg-teal-500 rounded text-white">OK</button>
+                        <button onClick={handleCancelRename} className="px-2 py-0.5 text-xs bg-gray-600 hover:bg-gray-500 rounded text-white">キャンセル</button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-semibold truncate max-w-[8rem]" title={c.name}>{c.name}</span>
+                        <span className="text-xs text-gray-400">({c.lockedTags.length}タグ)</span>
+                        <button onClick={() => handleLoadCharacter(c.lockedTags)} className="px-2 py-0.5 text-xs bg-blue-600 hover:bg-blue-500 rounded text-white">読込</button>
+                        <button onClick={() => handleStartRename(idx)} className="px-2 py-0.5 text-xs bg-yellow-600 hover:bg-yellow-500 rounded text-white">リネーム</button>
+                        <button onClick={() => handleDeleteCharacter(idx)} className="px-2 py-0.5 text-xs bg-red-600 hover:bg-red-500 rounded text-white">削除</button>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+      {/* ここまでキャラクター保存・読込UI */}
       <div className="flex flex-wrap justify-between items-center mb-4 gap-y-2">
         <h2 id="selected-tags-heading" className="text-xl font-semibold text-gray-100">
           選択済みタグ

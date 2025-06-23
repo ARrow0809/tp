@@ -73,3 +73,8 @@ export interface HistoryItem {
   modelName?: string; 
   format?: OutputFormat | 'ImagePrompt'; // To store the format of the prompt used for image generation
 }
+
+export interface SavedCharacter {
+  name: string;
+  lockedTags: string[]; // Array of tag IDs (Tag.id)
+}

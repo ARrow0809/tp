@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import YAML from 'yaml';
 import { Tag, OutputFormat, GeneratedPrompts, PersonaTheme as PersonaThemeType, Category, HistoryItem } from './types';
@@ -1711,6 +1710,24 @@ const App: React.FC = () => {
     setShowHistoryPanel(false); 
   }, [updateAndSortSelectedTags]);
 
+  // 1. handleLoadCharacter関数を追加
+  const handleLoadCharacter = (lockedTagIds: string[]) => {
+    // 例: タグリストのロック状態を復元するロジック
+    // 必要に応じてALL_TAGS_WITH_CATEGORY_IDなどを参照
+    if (lockedTagIds.length > 0 && typeof ALL_TAGS_WITH_CATEGORY_ID !== 'undefined') {
+      const firstTag = ALL_TAGS_WITH_CATEGORY_ID.find(tag => tag.id === lockedTagIds[0]);
+      if (firstTag && typeof setActiveTagCategoryId === 'function') {
+        setActiveTagCategoryId(firstTag.categoryId);
+      }
+    }
+    if (typeof setShowLockedOnlyFilter === 'function') {
+      setShowLockedOnlyFilter(false);
+    }
+    if (typeof updateAndSortSelectedTags === 'function' && typeof ALL_TAGS_WITH_CATEGORY_ID !== 'undefined') {
+      const lockedTags = ALL_TAGS_WITH_CATEGORY_ID.filter(tag => lockedTagIds.includes(tag.id)).map(tag => ({ ...tag, isLocked: true }));
+      updateAndSortSelectedTags(lockedTags);
+    }
+  };
 
   // If not logged in, show secure login screen
   if (!isLoggedIn) {
@@ -1801,6 +1818,7 @@ const App: React.FC = () => {
           showLockedOnlyFilter={showLockedOnlyFilter}
           onToggleShowLockedOnlyFilter={handleToggleShowLockedOnlyFilter}
           onUnlockAllTags={handleUnlockAllTags}
+          onLoadCharacter={handleLoadCharacter}
         />
 
         <TagSelector
