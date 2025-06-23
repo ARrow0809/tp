@@ -12,7 +12,7 @@ import ImageGenerationModal from './components/ImageGenerationModal';
 import HistoryPanel from './components/HistoryPanel'; // Import HistoryPanel
 import LoginScreen from './components/LoginScreen'; // Import LoginScreen
 import SecureLoginScreen from './components/SecureLoginScreen'; // Import SecureLoginScreen
-import ApiKeyModal from './components/ApiKeyModal'; // Import ApiKeyModal
+// APIキーは環境変数から直接読み込むため、ApiKeyModalは不要
 import { 
   generateJapaneseDescription, 
   generateImagePromptNaturalLanguage, 
@@ -51,6 +51,12 @@ const PERSONA_TAG_SLOTS: Array<{ categoryId: string; subCategoryId?: string; cou
   { categoryId: 'action', count: 1, required: false },
   { categoryId: 'expression', count: 1, required: false },
   { categoryId: 'decoration', count: 1, required: false },
+  // 背景関連のカテゴリを追加
+  { categoryId: 'background', subCategoryId: 'location', count: 1, required: false },
+  { categoryId: 'background', subCategoryId: 'weatherTime', count: 1, required: false },
+  { categoryId: 'lighting', count: 1, required: false },
+  { categoryId: 'angle', count: 1, required: false },
+  { categoryId: 'camera', count: 1, required: false },
 ];
 
 const formatLabels: Record<OutputFormat, string> = {
@@ -64,10 +70,12 @@ const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<string>('');
   
+  // 初期状態ではタグは選択せず、画風カテゴリとスタイルサブカテゴリを表示する
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
-  const [activeTagCategoryId, setActiveTagCategoryId] = useState<string | null>(
-    CATEGORIES.length > 0 ? CATEGORIES[0].id : null
-  );
+  // 初期状態では画風カテゴリを表示する
+  const [activeTagCategoryId, setActiveTagCategoryId] = useState<string | null>('styleArt');
+  // 初期状態ではスタイルサブカテゴリを表示する
+  const [initialSubCategoryId, setInitialSubCategoryId] = useState<string | null>('artStyle');
   
   const [japaneseDescription, setJapaneseDescription] = useState<string>('');
   const [generatedPrompts, setGeneratedPrompts] = useState<GeneratedPrompts | null>(null);
@@ -78,7 +86,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [apiKeyStatus, setApiKeyStatus] = useState<string>('APIキーを確認中...');
   const [showPersonaModal, setShowPersonaModal] = useState<boolean>(false);
-  const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
+  // APIキーは環境変数から直接読み込むため、showApiKeyModalは不要
 
   const [showImageGenerationModal, setShowImageGenerationModal] = useState<boolean>(false);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
@@ -154,33 +162,19 @@ const App: React.FC = () => {
   // Check API key status on component mount
   useEffect(() => {
     try {
-      // Check if API key exists in localStorage
-      const apiKeysEncrypted = localStorage.getItem('secure_api_keys');
-      const selectedApiType = localStorage.getItem('selected_api_type');
+      const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+      console.log("App.tsx - API key check:", {
+        API_KEY: process.env.API_KEY ? "set" : "not set",
+        GEMINI_API_KEY: process.env.GEMINI_API_KEY ? "set" : "not set",
+        combinedKey: apiKey ? "set" : "not set"
+      });
       
-      if (apiKeysEncrypted && selectedApiType) {
-        // API key exists in localStorage, set status to detected
-        setApiKeyStatus('APIキー検出済み');
-        
-        // Try to apply the API key from localStorage
-        if (typeof window !== 'undefined') {
-          if (!window.process) {
-            window.process = { env: {} };
-          } else if (!window.process.env) {
-            window.process.env = {};
-          }
-          
-          // We don't decrypt the key here as it's handled by ApiKeyManager
-          // This just ensures the app knows an API key is available
-          window.process.env.API_KEY = 'stored-key-exists';
-          window.process.env.GEMINI_API_KEY = 'stored-key-exists';
-        }
-      } else if (process.env.API_KEY) {
+      if (apiKey) {
         // API key exists in environment variables
         setApiKeyStatus('APIキー検出済み');
       } else {
         // No API key found
-        setApiKeyStatus('警告: APIキーが見つかりません。Gemini連携機能（説明生成、翻訳、画像読取り、ペルソナ作成、画像生成等）は利用できません。');
+        setApiKeyStatus('警告: 環境変数にAPIキーが設定されていません。Gemini連携機能（説明生成、翻訳、画像読取り、ペルソナ作成、画像生成等）は利用できません。');
       }
     } catch (error) {
       console.error('Error checking API key status:', error);
@@ -188,14 +182,7 @@ const App: React.FC = () => {
     }
   }, []);
   
-  // Handle API key change
-  const handleApiKeyChange = useCallback((apiKey: string | null) => {
-    if (apiKey) {
-      setApiKeyStatus('APIキー検出済み');
-    } else {
-      setApiKeyStatus('警告: APIキーが見つかりません。Gemini連携機能（説明生成、翻訳、画像読取り、ペルソナ作成、画像生成等）は利用できません。');
-    }
-  }, []);
+  // APIキーは環境変数から直接読み込むため、handleApiKeyChangeは不要
   
   // Handle login
   const handleLogin = (userId: string) => {
@@ -394,15 +381,115 @@ const App: React.FC = () => {
                 setError(`トークン数の上限 (${MAX_TOKENS}) に達するため、一部のタグのみ処理されます。`);
                 break;
             }
-            const newTag = await addTagWithTranslation(name, categoryId, categoryId === 'input');
-            if (newTag) {
-                if (allowMultipleForCategory) {
-                    newTag.id = `${newTag.id}_instance_${Date.now()}_${Math.random().toString(36).substring(2,7)}`;
-                    newTagsBatch.push(newTag);
-                } else {
-                    if (!currentSelectedTagsSnapshot.some(st => st.name.toLowerCase() === newTag.name.toLowerCase() && st.categoryId === categoryId) &&
-                        !newTagsBatch.some(nt => nt.name.toLowerCase() === newTag.name.toLowerCase() && nt.categoryId === categoryId)) {
+            
+            // プロンプト強化機能の処理
+            if (name.startsWith('enhance:') && categoryId === 'input') {
+                const textToEnhance = name.substring(8).trim();
+                if (textToEnhance) {
+                    setLoadingMessage('プロンプトを強化中...');
+                    try {
+                        // AIによるプロンプト強化処理
+                        const enhancePrompt = `
+                            以下のテキストをAI画像生成に適したプロンプトに強化してください。
+                            元のテキスト: "${textToEnhance}"
+                            
+                            以下の点を考慮して、より詳細で視覚的なプロンプトにしてください:
+                            - 視覚的な詳細（色、質感、形状など）を追加
+                            - 光の状態や雰囲気を追加
+                            - 構図や視点を明確に
+                            - 芸術的なスタイルや参照を追加
+                            
+                            強化したプロンプトはカンマ区切りで出力してください。英語で出力してください。
+                            
+                            例えば「赤い髪,少女,アイドル」という入力に対しては以下のような出力が期待されます：
+                            "Red hair, cute Japanese teenage girl, idol costume, smiling, standing on bright stage, holding microphone, glitter and spotlight, anime style, fine eyes, frilly dress, twin-tailed hair, dynamic pose"
+                            
+                            「森,湖,夕日」という入力に対しては以下のような出力が期待されます：
+                            "Dense forest, tranquil lake, golden sunset, silhouetted trees, reflective water surface, orange and purple sky, peaceful atmosphere, birds flying, mountain backdrop, cinematic view, high resolution landscape photography"
+                            
+                            入力テキストの内容を想像して、ある程度の創造性を持って詳細を追加してください。ただし、入力の本質的な内容は保持してください。
+                        `;
+                        
+                        // AIに強化を依頼
+                        const enhancedPrompt = await extractEnglishKeywordsFromJapaneseText(enhancePrompt);
+                        
+                        if (enhancedPrompt && enhancedPrompt.trim()) {
+                            // 強化されたプロンプトを日本語に翻訳
+                            let japaneseEnhancedPrompt = '';
+                            try {
+                                japaneseEnhancedPrompt = await translateToJapanese(enhancedPrompt);
+                            } catch (e) {
+                                console.error('Translation error:', e);
+                                japaneseEnhancedPrompt = enhancedPrompt;
+                            }
+                            
+                            // 強化されたプロンプトをカンマで分割し、個別のタグとして追加
+                            const enhancedTags = enhancedPrompt.split(',').map(tag => tag.trim()).filter(tag => tag);
+                            const japaneseEnhancedTags = japaneseEnhancedPrompt.split(',').map(tag => tag.trim()).filter(tag => tag);
+                            
+                            // 各タグを追加
+                            for (let i = 0; i < enhancedTags.length; i++) {
+                                if (currentSelectedTagsSnapshot.length + newTagsBatch.length >= MAX_TOKENS) {
+                                    break;
+                                }
+                                
+                                const enhancedTag: Tag = {
+                                    id: `enhanced-prompt-${Date.now()}-${i}`,
+                                    name: enhancedTags[i],
+                                    japaneseName: i < japaneseEnhancedTags.length ? japaneseEnhancedTags[i] : enhancedTags[i],
+                                    categoryId: 'input',
+                                    isLocked: false
+                                };
+                                
+                                newTagsBatch.push(enhancedTag);
+                            }
+                            
+                            // 強化されたプロンプト全体を日本語説明として保存
+                            setJapaneseDescription(enhancedPrompt);
+                            
+                            // 強化されたプロンプト全体を生成プロンプトとして設定
+                            const currentPrompts: GeneratedPrompts = {
+                                stableDiffusion: enhancedPrompt,
+                                midjourney: `${enhancedPrompt}${MIDJOURNEY_PARAMS}`,
+                                imagePrompt: enhancedPrompt,
+                                yaml: YAML.stringify({
+                                    prompt: enhancedPrompt,
+                                    negative_prompt: '',
+                                    steps: 30,
+                                    sampler: 'DPM++ 2M Karras',
+                                    cfg_scale: 7,
+                                    seed: -1,
+                                    size: '1024x1024',
+                                    model: 'modelName',
+                                })
+                            };
+                            
+                            // 生成されたプロンプトを設定
+                            setGeneratedPrompts(currentPrompts);
+                        }
+                    } catch (err) {
+                        console.error('プロンプト強化エラー:', err);
+                        setError('プロンプト強化に失敗しました。通常のタグとして追加します。');
+                        
+                        // エラーの場合は元のテキストをそのまま追加
+                        const newTag = await addTagWithTranslation(textToEnhance, categoryId, true);
+                        if (newTag) {
+                            newTagsBatch.push(newTag);
+                        }
+                    }
+                }
+            } else {
+                // 通常のタグ追加処理
+                const newTag = await addTagWithTranslation(name, categoryId, categoryId === 'input');
+                if (newTag) {
+                    if (allowMultipleForCategory) {
+                        newTag.id = `${newTag.id}_instance_${Date.now()}_${Math.random().toString(36).substring(2,7)}`;
                         newTagsBatch.push(newTag);
+                    } else {
+                        if (!currentSelectedTagsSnapshot.some(st => st.name.toLowerCase() === newTag.name.toLowerCase() && st.categoryId === categoryId) &&
+                            !newTagsBatch.some(nt => nt.name.toLowerCase() === newTag.name.toLowerCase() && nt.categoryId === categoryId)) {
+                            newTagsBatch.push(newTag);
+                        }
                     }
                 }
             }
@@ -463,23 +550,77 @@ const App: React.FC = () => {
     updateAndSortSelectedTags(reorderedFullList);
   }, [updateAndSortSelectedTags]);
 
+  const [showClearConfirmDialog, setShowClearConfirmDialog] = useState<boolean>(false);
+  const [clearConfirmMode, setClearConfirmMode] = useState<'all' | 'unlocked' | null>(null);
+  
+  // 確認ダイアログのレンダリング
+  const renderClearConfirmDialog = () => {
+    if (!showClearConfirmDialog) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl">
+          <h3 className="text-xl font-semibold text-gray-100 mb-4">タグのクリア確認</h3>
+          <p className="text-gray-300 mb-6">ロックされたタグがあります。どのように処理しますか？</p>
+          
+          <div className="flex flex-col space-y-3">
+            <button 
+              onClick={() => handleClearConfirm('all')}
+              className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-medium rounded-md transition-colors"
+            >
+              全てクリア
+            </button>
+            <button 
+              onClick={() => handleClearConfirm('unlocked')}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-md transition-colors"
+            >
+              ロック以外クリア
+            </button>
+            <button 
+              onClick={() => handleClearConfirm('cancel')}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white font-medium rounded-md transition-colors"
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
   const handleClearAllTags = useCallback(() => {
     setIsDescriptionFromPingInfo(false); 
     const hasLockedTags = selectedTags.some(t => t.isLocked);
-    let tagsToKeep: Tag[] = [];
-
+    
     if (hasLockedTags) {
-        if (window.confirm("ロックされたタグがあります。ロックされたタグも全てクリアしますか？\n（「キャンセル」を押すと、ロックされていないタグのみクリアされます）")) {
-            tagsToKeep = []; 
-        } else {
-            tagsToKeep = selectedTags.filter(t => t.isLocked); 
-        }
+      // ロックされたタグがある場合は確認ダイアログを表示
+      setShowClearConfirmDialog(true);
     } else {
-        tagsToKeep = []; 
+      // ロックされたタグがない場合は直接クリア
+      updateAndSortSelectedTags([]);
+      setGeneratedPrompts(null);
+      setJapaneseDescription('');
+      setError(null);
+      setGeneratedImageUrl(null);
+      setImageGenerationError(null);
+      setExtractedNegativePromptText(null);
+    }
+  }, [selectedTags, updateAndSortSelectedTags]);
+  
+  // 確認ダイアログの結果を処理する関数
+  const handleClearConfirm = useCallback((mode: 'all' | 'unlocked' | 'cancel') => {
+    setShowClearConfirmDialog(false);
+    
+    if (mode === 'cancel') {
+      return;
+    }
+    
+    let tagsToKeep: Tag[] = [];
+    if (mode === 'unlocked') {
+      tagsToKeep = selectedTags.filter(t => t.isLocked);
     }
     
     updateAndSortSelectedTags(tagsToKeep);
-
     setGeneratedPrompts(null);
     setJapaneseDescription('');
     setError(null);
@@ -575,10 +716,10 @@ const App: React.FC = () => {
     }
   }, [selectedTags, addTagWithTranslation, updateAndSortSelectedTags]); 
 
-  const handleRandomPersonaTagGeneration = useCallback(() => {
+  const handleRandomPersonaTagGeneration = useCallback((mode: 'all' | 'background-only' = 'all') => {
     setIsDescriptionFromPingInfo(false);
     setIsLoading(true);
-    setLoadingMessage('ランダムにタグを生成中...');
+    setLoadingMessage(mode === 'all' ? 'ランダムにタグを生成中...' : '背景（場所・天気・時間・ライティング・アングル・カメラ）タグをランダムに生成中...');
     setError(null);
     setJapaneseDescription('');
     setGeneratedPrompts(null);
@@ -605,18 +746,59 @@ const App: React.FC = () => {
         }
     }
     
+    // 性別に関連するタグ
     const maleGenderIds = ALL_TAGS_WITH_CATEGORY_ID.filter(t => t.categoryId === 'features' && t.subCategoryId === 'gender' && (t.name === '1boy' || t.name === 'man')).map(t => t.id);
     const femaleGenderIds = ALL_TAGS_WITH_CATEGORY_ID.filter(t => t.categoryId === 'features' && t.subCategoryId === 'gender' && (t.name === '1girl' || t.name === 'woman')).map(t => t.id);
+    
+    // 年齢に関連するタグ
     const elderlyWomanAgeId = ALL_TAGS_WITH_CATEGORY_ID.find(t=> t.categoryId === 'features' && t.subCategoryId === 'age' && t.name === 'elderly woman')?.id;
     const elderlyManAgeId = ALL_TAGS_WITH_CATEGORY_ID.find(t => t.categoryId === 'features' && t.subCategoryId === 'age' && t.name === 'elderly man')?.id;
+    const childAgeIds = ALL_TAGS_WITH_CATEGORY_ID.filter(t => t.categoryId === 'features' && t.subCategoryId === 'age' && 
+        (t.name === 'child' || t.name === 'toddler' || t.name === 'kindergartner')).map(t => t.id);
+    const teenagerAgeId = ALL_TAGS_WITH_CATEGORY_ID.find(t => t.categoryId === 'features' && t.subCategoryId === 'age' && t.name === 'teenager')?.id;
+    
+    // 髪型に関連するタグ
     const baldOrVeryShortHairLengthIds = ALL_TAGS_WITH_CATEGORY_ID.filter(t => t.categoryId === 'hair' && t.subCategoryId === 'hairLength' && (t.name === 'bald' || t.name === 'very short hair')).map(t=>t.id);
     const braidHairStyleIds = ALL_TAGS_WITH_CATEGORY_ID.filter(t => t.categoryId === 'hair' && t.subCategoryId === 'hairStyle' && t.name.includes('braid')).map(t => t.id);
+    
+    // 表情に関連するタグ
+    const smileExpressionIds = ALL_TAGS_WITH_CATEGORY_ID.filter(t => t.categoryId === 'expression' && 
+        (t.name === 'smile' || t.name === 'gentle smile' || t.name === 'happy face')).map(t => t.id);
+    const sadExpressionIds = ALL_TAGS_WITH_CATEGORY_ID.filter(t => t.categoryId === 'expression' && 
+        (t.name === 'sad face' || t.name === 'crying' || t.name === 'tears in eyes')).map(t => t.id);
 
 
+    // 背景のみモードの場合は、背景関連のカテゴリのみを処理する
+    // 場所+天気・時間+ライティング+アングル+カメラ
+    const backgroundCategories = ['background', 'lighting', 'angle', 'camera'];
+    
+    // 背景のみモードの場合、各カテゴリから最低1つのタグを選択するために必須フラグを設定
+    const requiredBackgroundSlots = [
+      { categoryId: 'background', subCategoryId: 'location' },
+      { categoryId: 'background', subCategoryId: 'weatherTime' },
+      { categoryId: 'lighting' },
+      { categoryId: 'angle' },
+      { categoryId: 'camera' }
+    ];
+    
     for (const slot of PERSONA_TAG_SLOTS) {
-        if (currentTokenCount >= MAX_TOKENS && slot.required) {
+        // 背景のみモードの場合は、背景関連のカテゴリのみを処理する
+        if (mode === 'background-only' && !backgroundCategories.includes(slot.categoryId)) {
+            continue;
+        }
+        
+        // 背景のみモードの場合、指定されたスロットは必須とする
+        let isRequiredSlot = slot.required;
+        if (mode === 'background-only') {
+            isRequiredSlot = requiredBackgroundSlots.some(rs => 
+                rs.categoryId === slot.categoryId && 
+                (rs.subCategoryId === undefined || rs.subCategoryId === slot.subCategoryId)
+            );
+        }
+        
+        if (currentTokenCount >= MAX_TOKENS && isRequiredSlot) {
             console.warn(`MAX_TOKENS reached, but slot ${slot.categoryId}/${slot.subCategoryId || ''} is required.`);
-        } else if (currentTokenCount >= MAX_TOKENS && !slot.required) {
+        } else if (currentTokenCount >= MAX_TOKENS && !isRequiredSlot) {
             continue;
         }
 
@@ -663,29 +845,132 @@ const App: React.FC = () => {
             );
         }
         
+        // 年齢と性別の一貫性を保つ
         if (slot.categoryId === 'features' && slot.subCategoryId === 'age') {
             const newlySelectedGenderTag = newGeneratedTags.find(t => t.categoryId === 'features' && t.subCategoryId === 'gender' && !t.isLocked);
             if (newlySelectedGenderTag) {
-                if (maleGenderIds.includes(newlySelectedGenderTag.id) && elderlyWomanAgeId) availableTagsForSlot = availableTagsForSlot.filter(t => t.id !== elderlyWomanAgeId);
-                else if (femaleGenderIds.includes(newlySelectedGenderTag.id) && elderlyManAgeId) availableTagsForSlot = availableTagsForSlot.filter(t => t.id !== elderlyManAgeId);
+                if (maleGenderIds.includes(newlySelectedGenderTag.id)) {
+                    // 男性の場合、女性特有の年齢タグを除外
+                    if (elderlyWomanAgeId) availableTagsForSlot = availableTagsForSlot.filter(t => t.id !== elderlyWomanAgeId);
+                } 
+                else if (femaleGenderIds.includes(newlySelectedGenderTag.id)) {
+                    // 女性の場合、男性特有の年齢タグを除外
+                    if (elderlyManAgeId) availableTagsForSlot = availableTagsForSlot.filter(t => t.id !== elderlyManAgeId);
+                }
             }
         }
+        // 髪型の一貫性を保つ
         if (slot.categoryId === 'hair' && slot.subCategoryId === 'hairStyle') {
+            // 髪の長さに基づいて髪型を制限
             const existingHairLengthTag = newGeneratedTags.find(t => t.categoryId === 'hair' && t.subCategoryId === 'hairLength' && !t.isLocked);
             if (existingHairLengthTag && baldOrVeryShortHairLengthIds.includes(existingHairLengthTag.id)) {
                 availableTagsForSlot = availableTagsForSlot.filter(t => !braidHairStyleIds.includes(t.id));
             }
+            
+            // 年齢に基づいて髪型を制限
+            const selectedAgeTag = newGeneratedTags.find(t => t.categoryId === 'features' && t.subCategoryId === 'age' && !t.isLocked);
+            if (selectedAgeTag) {
+                // 子供の場合、特定の髪型を優先
+                if (childAgeIds.includes(selectedAgeTag.id)) {
+                    // 子供向けの髪型をフィルタリング (例: ツインテールなど)
+                    const childFriendlyHairStyles = availableTagsForSlot.filter(t => 
+                        t.name === 'twintails' || t.name === 'bowl cut' || t.name === 'short hair');
+                    if (childFriendlyHairStyles.length > 0) {
+                        availableTagsForSlot = childFriendlyHairStyles;
+                    }
+                }
+            }
         }
+        
         if (slot.categoryId === 'hair' && slot.subCategoryId === 'hairLength') {
-             const existingHairStyleTag = newGeneratedTags.find(t => t.categoryId === 'hair' && t.subCategoryId === 'hairStyle' && !t.isLocked);
-             if (existingHairStyleTag && braidHairStyleIds.includes(existingHairStyleTag.id)) {
+            // 髪型に基づいて髪の長さを制限
+            const existingHairStyleTag = newGeneratedTags.find(t => t.categoryId === 'hair' && t.subCategoryId === 'hairStyle' && !t.isLocked);
+            if (existingHairStyleTag && braidHairStyleIds.includes(existingHairStyleTag.id)) {
                 availableTagsForSlot = availableTagsForSlot.filter(t => !baldOrVeryShortHairLengthIds.includes(t.id));
-             }
+            }
+            
+            // 性別に基づいて髪の長さを調整
+            const selectedGenderTag = newGeneratedTags.find(t => t.categoryId === 'features' && t.subCategoryId === 'gender' && !t.isLocked);
+            if (selectedGenderTag) {
+                if (maleGenderIds.includes(selectedGenderTag.id)) {
+                    // 男性は短い髪を優先
+                    const shortHairOptions = availableTagsForSlot.filter(t => 
+                        t.name === 'short hair' || t.name === 'very short hair' || t.name === 'medium short hair');
+                    if (shortHairOptions.length > 0) {
+                        availableTagsForSlot = shortHairOptions;
+                    }
+                }
+            }
+        }
+        
+        // 服装の選択を年齢や性別に合わせる
+        if (slot.categoryId === 'clothing') {
+            const selectedAgeTag = newGeneratedTags.find(t => t.categoryId === 'features' && t.subCategoryId === 'age' && !t.isLocked);
+            const selectedGenderTag = newGeneratedTags.find(t => t.categoryId === 'features' && t.subCategoryId === 'gender' && !t.isLocked);
+            
+            if (selectedAgeTag && childAgeIds.includes(selectedAgeTag.id)) {
+                // 子供向けの服装をフィルタリング
+                const childClothingOptions = availableTagsForSlot.filter(t => 
+                    t.name === 'school uniform' || t.name === 't-shirt' || t.name === 'hoodie');
+                if (childClothingOptions.length > 0) {
+                    availableTagsForSlot = childClothingOptions;
+                }
+            } else if (selectedAgeTag && selectedAgeTag.id === teenagerAgeId) {
+                // 10代向けの服装をフィルタリング
+                const teenClothingOptions = availableTagsForSlot.filter(t => 
+                    t.name === 'school uniform' || t.name === 't-shirt' || t.name === 'hoodie' || t.name === 'jeans');
+                if (teenClothingOptions.length > 0) {
+                    availableTagsForSlot = teenClothingOptions;
+                }
+            }
         }
 
+        // 既に選択されているカテゴリを除外
         availableTagsForSlot = availableTagsForSlot.filter(candidateTag => 
             !newGeneratedTags.some(existingTag => !existingTag.isLocked && existingTag.categoryId === candidateTag.categoryId)
         );
+        
+        // 表情と動作の一貫性を保つ
+        if (slot.categoryId === 'expression') {
+            // ランダムに笑顔か悲しい表情を選ぶ（一貫性のため）
+            const expressionType = Math.random() > 0.7 ? 'sad' : 'smile'; // 70%の確率で笑顔、30%の確率で悲しい表情
+            
+            if (expressionType === 'smile' && smileExpressionIds.length > 0) {
+                const smileOptions = availableTagsForSlot.filter(t => smileExpressionIds.includes(t.id));
+                if (smileOptions.length > 0) {
+                    availableTagsForSlot = smileOptions;
+                }
+            } else if (expressionType === 'sad' && sadExpressionIds.length > 0) {
+                const sadOptions = availableTagsForSlot.filter(t => sadExpressionIds.includes(t.id));
+                if (sadOptions.length > 0) {
+                    availableTagsForSlot = sadOptions;
+                }
+            }
+        }
+        
+        // 動作の選択を表情に合わせる
+        if (slot.categoryId === 'action') {
+            const selectedExpression = newGeneratedTags.find(t => t.categoryId === 'expression' && !t.isLocked);
+            
+            if (selectedExpression) {
+                // 笑顔の場合は、ポジティブな動作を優先
+                if (smileExpressionIds.includes(selectedExpression.id)) {
+                    const positiveActions = availableTagsForSlot.filter(t => 
+                        t.name === 'waving hand' || t.name === 'dancing' || t.name === 'jumping');
+                    if (positiveActions.length > 0) {
+                        availableTagsForSlot = positiveActions;
+                    }
+                } 
+                // 悲しい表情の場合は、静かな動作を優先
+                else if (sadExpressionIds.includes(selectedExpression.id)) {
+                    const quietActions = availableTagsForSlot.filter(t => 
+                        t.name === 'sitting' || t.name === 'lying down' || t.name === 'arms crossed');
+                    if (quietActions.length > 0) {
+                        availableTagsForSlot = quietActions;
+                    }
+                }
+            }
+        }
 
 
         if (availableTagsForSlot.length > 0) {
@@ -732,17 +1017,117 @@ const App: React.FC = () => {
         }
     }
 
-    if (newGeneratedTags.length === lockedTags.length && PERSONA_TAG_SLOTS.some(s => s.required && !slotsFilledByLocked.has(s.subCategoryId ? `${s.categoryId}-${s.subCategoryId}` : s.categoryId))) {
-      setError("ランダム生成に必要なタグが見つかりませんでした。ロックされたカテゴリが多すぎるか、カテゴリ定義を確認してください。");
+    if (newGeneratedTags.length === lockedTags.length) {
+      if (mode === 'all') {
+        setError("ランダム生成に必要なタグが見つかりませんでした。ロックされたカテゴリが多すぎるか、カテゴリ定義を確認してください。");
+      } else if (mode === 'background-only') {
+        setError("背景タグのランダム生成に必要なタグが見つかりませんでした。ライティングとアングルのカテゴリがロックされているか確認してください。");
+      }
     }
 
-    updateAndSortSelectedTags(newGeneratedTags.slice(0, MAX_TOKENS));
-    if (newGeneratedTags.length > MAX_TOKENS) {
+    // 背景のみモードの場合、LLMを使って背景を強化する
+    if (mode === 'background-only') {
+      // 既存の背景関連タグを取得
+      const backgroundTags = newGeneratedTags.filter(tag => 
+        backgroundCategories.includes(tag.categoryId) || 
+        (tag.categoryId === 'background' && tag.subCategoryId === 'weatherTime')
+      );
+      
+      // 背景タグの名前を抽出
+      const backgroundTagNames = backgroundTags.map(tag => tag.name);
+      
+      if (backgroundTagNames.length > 0) {
+        setLoadingMessage('AIで背景の臨場感を向上中...');
+        
+        // 入力タグに基づいて、LLMで背景の詳細を強化する非同期処理
+        (async () => {
+          try {
+            // 既存のタグを使って、より詳細な背景を生成
+            const enhancedBackgroundPrompt = `
+              以下の背景関連タグから、より臨場感のある背景を作成してください。
+              既存のタグ: ${backgroundTagNames.join(', ')}
+              
+              以下の点を考慮して、背景をより豊かにする追加タグを3-5個提案してください:
+              - 季節感や時間帯の詳細（朝焼け、夕暮れ、真夜中など）
+              - 天気の細かい状態（霧雨、霧、雷雲など）
+              - 光の質感（柔らかい光、鋭い光線、散乱光など）
+              - 空気感（湿度、温度感など）
+              - 背景の細部（遠景の山、水面の反射、雲の形など）
+              
+              タグのみをカンマ区切りで出力してください。英語で出力してください。
+            `;
+            
+            // LLMに背景強化を依頼
+            const enhancedBackgroundResponse = await extractEnglishKeywordsFromJapaneseText(enhancedBackgroundPrompt);
+            
+            if (enhancedBackgroundResponse && enhancedBackgroundResponse.trim()) {
+              // 新しいタグを追加
+              const enhancedTags = enhancedBackgroundResponse.split(',').map(tag => tag.trim()).filter(tag => tag);
+              
+              // 重複を避けるため、既存のタグと名前が一致しないものだけを追加
+              const existingTagNames = new Set(newGeneratedTags.map(tag => tag.name.toLowerCase()));
+              
+              const newEnhancedTags: Tag[] = [];
+              
+              for (let i = 0; i < enhancedTags.length && newGeneratedTags.length + newEnhancedTags.length < MAX_TOKENS; i++) {
+                const tagName = enhancedTags[i];
+                if (!existingTagNames.has(tagName.toLowerCase())) {
+                  // 日本語名の取得を試みる
+                  let japaneseName = tagName;
+                  try {
+                    const translatedName = await translateToJapanese(tagName);
+                    if (translatedName) japaneseName = translatedName;
+                  } catch (e) {
+                    console.error('Tag translation error:', e);
+                  }
+                  
+                  newEnhancedTags.push({
+                    id: `enhanced-bg-${Date.now()}-${i}`,
+                    name: tagName,
+                    japaneseName: japaneseName,
+                    categoryId: 'input', // 入力カテゴリとして追加
+                    isLocked: false
+                  });
+                }
+              }
+              
+              // 強化されたタグを追加
+              newGeneratedTags = [...newGeneratedTags, ...newEnhancedTags];
+              
+              // 日本語の説明を追加
+              setJapaneseDescription('AIによって背景の臨場感が向上しました。追加されたタグで画像の雰囲気がより豊かになります。');
+            }
+          } catch (err) {
+            console.error('背景強化エラー:', err);
+            // エラーがあっても処理は続行し、基本的なタグは表示する
+          } finally {
+            // 最終的なタグを更新
+            updateAndSortSelectedTags(newGeneratedTags.slice(0, MAX_TOKENS));
+            if (newGeneratedTags.length > MAX_TOKENS) {
+              setError(`トークン数の上限 (${MAX_TOKENS}) に達したため、一部のタグのみ表示されます。`);
+            }
+            setIsLoading(false);
+            setLoadingMessage('');
+          }
+        })();
+      } else {
+        // 背景タグがない場合は通常処理
+        updateAndSortSelectedTags(newGeneratedTags.slice(0, MAX_TOKENS));
+        if (newGeneratedTags.length > MAX_TOKENS) {
+          setError(`トークン数の上限 (${MAX_TOKENS}) に達したため、一部のランダムタグのみ表示されます。`);
+        }
+        setIsLoading(false);
+        setLoadingMessage('');
+      }
+    } else {
+      // 通常のモードの場合はそのまま更新
+      updateAndSortSelectedTags(newGeneratedTags.slice(0, MAX_TOKENS));
+      if (newGeneratedTags.length > MAX_TOKENS) {
         setError(`トークン数の上限 (${MAX_TOKENS}) に達したため、一部のランダムタグのみ表示されます。`);
+      }
+      setIsLoading(false);
+      setLoadingMessage('');
     }
-
-    setIsLoading(false);
-    setLoadingMessage('');
   }, [selectedTags, updateAndSortSelectedTags]);
 
 
@@ -1078,8 +1463,26 @@ const App: React.FC = () => {
 
 
       setLoadingMessage('ImagePrompt (自然言語)を生成中...');
-      const ipPrompt = await generateImagePromptNaturalLanguage(basePromptForAI, sourceWasPinginfo && isSensitiveFilterEnabled);
-      currentPrompts.imagePrompt = ipPrompt;
+      // 日本語の説明文を直接英語に翻訳して使用する
+      let translatedPrompt = '';
+      try {
+        translatedPrompt = await translateToEnglish(newJapaneseDescription);
+        if (!translatedPrompt) {
+          // 翻訳に失敗した場合はAIによるプロンプト生成を使用
+          translatedPrompt = await generateImagePromptNaturalLanguage(basePromptForAI, sourceWasPinginfo && isSensitiveFilterEnabled);
+        }
+      } catch (err) {
+        console.error('Translation error:', err);
+        // エラーが発生した場合はAIによるプロンプト生成を使用
+        translatedPrompt = await generateImagePromptNaturalLanguage(basePromptForAI, sourceWasPinginfo && isSensitiveFilterEnabled);
+      }
+      
+      // 敏感な単語をフィルタリング
+      if (sourceWasPinginfo && isSensitiveFilterEnabled) {
+        translatedPrompt = filterSensitiveWords(translatedPrompt, BANNED_WORDS);
+      }
+      
+      currentPrompts.imagePrompt = translatedPrompt;
       
       setGeneratedPrompts(currentPrompts);
       setCurrentOutputFormat('stableDiffusion');
@@ -1350,25 +1753,8 @@ const App: React.FC = () => {
 
 
         {apiKeyStatus.startsWith("警告:") && (
-          <div className="bg-yellow-500/20 border border-yellow-700 text-yellow-300 px-4 py-3 rounded-md shadow-md text-sm flex justify-between items-center" role="alert">
+          <div className="bg-yellow-500/20 border border-yellow-700 text-yellow-300 px-4 py-3 rounded-md shadow-md text-sm" role="alert">
             <div>{apiKeyStatus}</div>
-            <button 
-              onClick={() => setShowApiKeyModal(true)} 
-              className="ml-4 px-3 py-1 bg-yellow-700 hover:bg-yellow-600 rounded text-xs font-medium"
-            >
-              APIキー設定
-            </button>
-          </div>
-        )}
-        
-        {!apiKeyStatus.startsWith("警告:") && (
-          <div className="flex justify-end mb-4">
-            <button 
-              onClick={() => setShowApiKeyModal(true)} 
-              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs font-medium text-gray-300"
-            >
-              APIキー設定
-            </button>
           </div>
         )}
         {error && (
@@ -1414,6 +1800,7 @@ const App: React.FC = () => {
           activeCategoryId={activeTagCategoryId}
           setActiveCategoryId={setActiveTagCategoryId}
           onBulkAddTags={handleBulkAddTags}
+          initialSubCategoryId={initialSubCategoryId}
         />
         
         <PromptOutputArea
@@ -1477,14 +1864,10 @@ const App: React.FC = () => {
           />
         )}
         
-        {showApiKeyModal && (
-          <ApiKeyModal
-            isOpen={showApiKeyModal}
-            onClose={() => setShowApiKeyModal(false)}
-            onApiKeyChange={handleApiKeyChange}
-          />
-        )}
-
+        {/* APIキーは環境変数から直接読み込むため、ApiKeyModalは不要 */}
+        
+        {/* タグクリア確認ダイアログ */}
+        {renderClearConfirmDialog()}
 
          <footer className="text-center text-gray-500 text-xs mt-10 pb-6">
             タグ選択式プロンプトビルダー &copy; {new Date().getFullYear()}

@@ -12,7 +12,7 @@ interface SelectedTagsAreaProps {
   onShowPersonaModal: () => void;
   onShowImageTagger: () => void;
   onTriggerMetadataUpload: () => void; 
-  onGenerateRandomPersonaTags: () => void;
+  onGenerateRandomPersonaTags: (mode: 'all' | 'background-only') => void;
   onClearAllTags: () => void; 
   maxTokens: number;
   onToggleLock: (tagId: string) => void;
@@ -120,18 +120,29 @@ const SelectedTagsArea: React.FC<SelectedTagsAreaProps> = ({
         <h2 id="selected-tags-heading" className="text-xl font-semibold text-gray-100">
           選択済みタグ
         </h2>
-        <div className="flex items-center space-x-2 sm:space-x-3">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Action Buttons: Random, Persona, Image, Metadata, Clear */}
           <button
-            onClick={onGenerateRandomPersonaTags}
+            onClick={() => onGenerateRandomPersonaTags('all')}
             className="px-3 py-1.5 text-xs font-medium bg-purple-700 hover:bg-purple-600 text-gray-100 rounded-md transition-colors flex items-center"
-            title="ランダムにタグを選択してペルソナの基礎を生成します"
+            title="各カテゴリ・サブカテゴリから1つずつランダムにタグを選択します"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mr-1.5">
               <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.223 3.802 5.5 5.5 0 019.223-3.802zM4.688 8.576a5.5 5.5 0 019.223-3.802 5.5 5.5 0 01-9.223 3.802z" clipRule="evenodd" />
               <path d="M6.75 7.25a.75.75 0 000 1.5h6.5a.75.75 0 000-1.5h-6.5zM10 12.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0v-2.25a.75.75 0 01.75-.75z" />
             </svg>
-            ランダム生成
+            全体ランダム
+          </button>
+          <button
+            onClick={() => onGenerateRandomPersonaTags('background-only')}
+            className="px-3 py-1.5 text-xs font-medium bg-cyan-500 hover:bg-cyan-400 text-gray-100 rounded-md transition-colors flex items-center"
+            title="背景（場所・天気・時間・ライティング・アングル・カメラ）のみランダムに選択し、AIで臨場感を向上させます"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mr-1.5">
+              <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.223 3.802 5.5 5.5 0 019.223-3.802zM4.688 8.576a5.5 5.5 0 019.223-3.802 5.5 5.5 0 01-9.223 3.802z" clipRule="evenodd" />
+              <path d="M6.75 7.25a.75.75 0 000 1.5h6.5a.75.75 0 000-1.5h-6.5zM10 12.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0v-2.25a.75.75 0 01.75-.75z" />
+            </svg>
+            背景のみ
           </button>
           <button
             onClick={onShowPersonaModal}

@@ -5,12 +5,21 @@ import { MIDJOURNEY_PARAMS, GEMINI_TEXT_MODEL_NAME, IMAGEN_MODEL_NAME, QUALITY_J
 let ai: GoogleGenAI | null = null;
 
 const getAiInstance = (): GoogleGenAI => {
-  if (!process.env.API_KEY) {
-    console.error("API_KEY is not set in process.env. Gemini related functions will fail.");
-    throw new Error("API_KEY 環境変数が設定されていません。");
+  // APIキーのデバッグ情報を出力
+  console.log("API_KEY環境変数の状態:", process.env.API_KEY ? "設定されています" : "設定されていません");
+  console.log("GEMINI_API_KEY環境変数の状態:", process.env.GEMINI_API_KEY ? "設定されています" : "設定されていません");
+  
+  // APIキーの取得を試みる（API_KEYまたはGEMINI_API_KEY）
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  
+  if (!apiKey) {
+    console.error("API_KEY または GEMINI_API_KEY が process.env に設定されていません。Gemini関連の機能は失敗します。");
+    throw new Error("APIキーが環境変数に設定されていません。");
   }
+  
   if (!ai) {
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    console.log("GoogleGenAIインスタンスを初期化します。APIキーの長さ:", apiKey.length);
+    ai = new GoogleGenAI({ apiKey });
   }
   return ai;
 };

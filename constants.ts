@@ -384,6 +384,54 @@ export const CATEGORIES: Category[] = [
       { id: 'ex19', name: 'happy face', japaneseName: '幸せな顔' },
     ]
   },
+    // --- 背景 (Background) ---
+    {
+      id: 'background', name: '背景', color: 'bg-orange-600', textColor: 'text-orange-100',
+      subCategories: [
+        { id: 'location', name: '場所', tags: [
+          { id: 'l1', name: 'outdoor', japaneseName: '屋外' },
+          { id: 'l2', name: 'indoor', japaneseName: '屋内' },
+          { id: 'l3', name: 'cityscape', japaneseName: '街並み' },
+          { id: 'l4', name: 'forest', japaneseName: '森' },
+          { id: 'l5', name: 'beach', japaneseName: 'ビーチ' },
+          { id: 'l6', name: 'outer space', japaneseName: '宇宙' },
+          { id: 'l7', name: 'sky', japaneseName: '空' },
+          { id: 'l8', name: 'room', japaneseName: '部屋' },
+          { id: 'l9', name: 'bedroom', japaneseName: '寝室' },
+          { id: 'l10', name: 'classroom', japaneseName: '教室' },
+          { id: 'l11', name: 'cafe', japaneseName: 'カフェ' },
+          { id: 'l12', name: 'library', japaneseName: '図書館' },
+          { id: 'l13', name: 'mountain', japaneseName: '山' },
+          { id: 'l14', name: 'ocean', japaneseName: '海' },
+          { id: 'l15', name: 'ruins', japaneseName: '遺跡' },
+          { id: 'l16', name: 'church', japaneseName: '教会' },
+          { id: 'l17', name: 'castle', japaneseName: '城' },
+          { id: 'l18', name: 'sci-fi city', japaneseName: 'SF都市' },
+          { id: 'l19', name: 'fantasy landscape', japaneseName: 'ファンタジー風景' },
+          { id: 'l20', name: 'underwater', japaneseName: '水中' },
+        ]},
+        { id: 'weatherTime', name: '天気・時間', tags: [
+          { id: 'wt1', name: 'day', japaneseName: '昼' },
+          { id: 'wt2', name: 'night', japaneseName: '夜' },
+          { id: 'wt3', name: 'sunset', japaneseName: '夕日' },
+          { id: 'wt4', name: 'rain', japaneseName: '雨' },
+          { id: 'wt5', name: 'snow', japaneseName: '雪' },
+          { id: 'wt6', name: 'cloudy', japaneseName: '曇り' },
+          { id: 'wt7', name: 'full_moon', japaneseName: '満月' },
+          { id: 'wt8', name: 'starry_sky', japaneseName: '星空' },
+        ]},
+        { id: 'bgFeatures', name: '背景の特徴', tags: [
+          { id: 'bf1', name: 'simple_background', japaneseName: 'シンプルな背景' },
+          { id: 'bf2', name: 'white_background', japaneseName: '白背景' },
+          { id: 'bf3', name: 'black_background', japaneseName: '黒背景' },
+          { id: 'bf4', name: 'transparent_background', japaneseName: '透過背景' },
+          { id: 'bf5', name: 'blurry_background', japaneseName: 'ぼかし背景' },
+          { id: 'bf6', name: 'gradient_background', japaneseName: 'グラデーション背景' },
+          { id: 'bf7', name: 'abstract_background', japaneseName: '抽象的背景' },
+          { id: 'bf8', name: 'fireworks', japaneseName: '花火' },
+        ]}
+      ]
+    },
   {
     id: 'lighting', name: 'ライティング', color: 'bg-cyan-600', textColor: 'text-cyan-100',
     tags: [
@@ -463,7 +511,85 @@ export const CATEGORIES: Category[] = [
     ]
   },
   {
-    id: 'input', name: '入力', color: 'bg-gray-500', textColor: 'text-gray-100', isInputCategory: true,
+    id: 'input', name: 'テキスト入力', color: 'bg-gray-500', textColor: 'text-gray-100', isInputCategory: true,
+  },
+  // --- 🔞その他/高度 (NSFW/Advanced) ---
+  {
+    id: 'advancedNsfw', name: '🔞その他', color: 'bg-red-700', textColor: 'text-red-100',
+    isNsfwCategory: true,
+    subCategories: [
+      { id: 'character', name: 'キャラクター属性', tags: [
+        { id: 'anc1', name: 'loli', japaneseName: 'ロリ' },
+        { id: 'anc2', name: 'shota', japaneseName: 'ショタ' },
+        { id: 'anc3', name: 'mesugaki', japaneseName: 'メスガキ' },
+        { id: 'anc4', name: 'female_perv', japaneseName: '痴女' },
+        { id: 'anc5', name: 'milf_char', japaneseName: '熟女キャラ' }, 
+        { id: 'anc6', name: 'otoko_no_ko', japaneseName: '男の娘' },
+        { id: 'anc7', name: 'crossdressing', japaneseName: '女装' },
+        { id: 'anc8', name: 'futanari_char', japaneseName: 'ふたなりキャラ' }, 
+      ]},
+      { id: 'expressionAction', name: '表情・行為', tags: [
+        { id: 'anea1', name: 'ahegao', japaneseName: 'アヘ顔' },
+        { id: 'anea2', name: 'rape_face', japaneseName: 'レイプ顔' },
+        { id: 'anea3', name: 'moaning', japaneseName: '呻き声' },
+        { id: 'anea4', name: 'licking_action', japaneseName: '舐める(行為)' }, 
+        { id: 'anea5', name: 'oral_action', japaneseName: 'オーラル(行為)' }, 
+        { id: 'anea6', name: 'pole_dancing', japaneseName: 'ポールダンス' },
+        { id: 'anea7', name: 'strangling_action', japaneseName: '絞める(行為)' }, 
+      ]},
+      { id: 'position', name: '体位・ポーズ', tags: [
+        { id: 'anp1', name: 'bent_over', japaneseName: 'ベントオーバー' },
+        { id: 'anp2', name: 'all_fours', japaneseName: '四つん這い' },
+        { id: 'anp3', name: 'spread_legs_nsfw', japaneseName: '開脚(NSFW)' }, 
+        { id: 'anp4', name: 'm_legs', japaneseName: 'M字開脚' },
+        { id: 'anp5', name: 'straddling', japaneseName: '跨る' },
+        { id: 'anp6', name: 'gravure_pose', japaneseName: 'グラビアポーズ' },
+        { id: 'anp7', name: 'presenting', japaneseName: '見せつける' },
+        { id: 'anp8', name: 'against_glass', japaneseName: 'ガラスに押し付け' },
+      ]},
+      { id: 'clothingNsfw', name: '服装・露出', tags: [ 
+        { id: 'ancL1', name: 'fundoshi', japaneseName: 'ふんどし' },
+        { id: 'ancL2', name: 'babydoll', japaneseName: 'ベビードール' },
+        { id: 'ancL3', name: 'school_swimsuit_nsfw', japaneseName: 'スクール水着(NSFW)' }, 
+        { id: 'ancL4', name: 'highleg_swimsuit', japaneseName: 'ハイレグ水着' },
+        { id: 'ancL5', name: 'bikini_nsfw', japaneseName: 'ビキニ(NSFW)' }, 
+        { id: 'ancL6', name: 'thong_bikini', japaneseName: 'Tバックビキニ' },
+        { id: 'ancL7', name: 'bikini_top_only', japaneseName: 'ビキニトップのみ' },
+        { id: 'ancL8', name: 'wedgie', japaneseName: '食い込み' },
+        { id: 'ancL9', name: 'underbust_clothing', japaneseName: 'アンダーバスト(服装)' }, 
+        { id: 'ancL10', name: 'strap_slip', japaneseName: 'ストラップずり落ち' },
+        { id: 'ancL11', name: 'virgin_killer_sweater', japaneseName: '童貞を殺すセーター' },
+        { id: 'ancL12', name: 'see-through_dress_nsfw', japaneseName: '透けるドレス(NSFW)' }, 
+        { id: 'ancL13', name: 'microskirt', japaneseName: 'マイクロスカート' },
+        { id: 'ancL14', name: 'crotchless_pants', japaneseName: 'クロッチレスパンツ' },
+        { id: 'ancL15', name: 'buruma', japaneseName: 'ブルマ' },
+        { id: 'ancL16', name: 'bodystocking', japaneseName: 'ボディストッキング' },
+        { id: 'ancL17', name: 'pantyhose_nsfw', japaneseName: 'パンスト(NSFW)' }, 
+        { id: 'ancL18', name: 'latex_clothing', japaneseName: 'ラテックス(服装)' }, 
+        { id: 'ancL19', name: 'pasties_clothing', japaneseName: 'ニプレス(服装)' }, 
+        { id: 'ancL20', name: 'dakimakura', japaneseName: '抱き枕' },
+      ]},
+      { id: 'slangEuphemismsNsfw', name: '隠語・表現(NSFW)', tags: [ 
+        { id: 'se1', name: 'nakadashi_action', japaneseName: '中出し(行為)' }, 
+        { id: 'se2', name: 'bukkake_action', japaneseName: 'ぶっかけ(行為)' }, 
+        { id: 'se3', name: 'paizuri_action', japaneseName: 'パイズリ(行為)' }, 
+        { id: 'se4', name: 'cum_on_body_action', japaneseName: 'ザーメン塗れ(行為)' }, 
+        { id: 'se5', name: 'tentacles_nsfw', japaneseName: '触手(NSFW)' }, 
+        { id: 'se6', name: 'harem_nsfw', japaneseName: 'ハーレム(NSFW)' }, 
+        { id: 'se7', name: 'yaoi_nsfw', japaneseName: 'やおい(NSFW)' }, 
+        { id: 'se8', name: 'yuri_nsfw', japaneseName: '百合(NSFW)' }, 
+      ]},
+      { id: 'otherAdvancedNsfw', name: 'その他高度な設定(NSFW)', tags: [ 
+        { id: 'oa1_nsfw', name: 'bondage_nsfw', japaneseName: 'ボンデージ(NSFW)' }, 
+        { id: 'oa2_nsfw', name: 'shibari_nsfw', japaneseName: '緊縛(NSFW)' }, 
+        { id: 'oa3_nsfw', name: 'gagged_nsfw', japaneseName: '猿ぐつわ(NSFW)' }, 
+        { id: 'oa4_nsfw', name: 'blindfolded_nsfw', japaneseName: '目隠し(NSFW)' }, 
+        { id: 'oa5_nsfw', name: 'BDSM_nsfw', japaneseName: 'BDSM(NSFW)' }, 
+        { id: 'oa6_nsfw', name: 'foot_licking_action', japaneseName: '足舐め(行為)' }, 
+        { id: 'oa7_nsfw', name: 'guro_nsfw', japaneseName: 'グロ(NSFW)' }, 
+        { id: 'oa8_nsfw', name: 'public_indecency_nsfw', japaneseName: '公然わいせつ(NSFW)' }, 
+      ]}
+    ]
   },
   DERIVED_PINGINFO_TAG_CATEGORY, // Add the new category here
 ];

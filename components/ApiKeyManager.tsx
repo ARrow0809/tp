@@ -81,6 +81,9 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeyChange, onClose }
             window.process.env.API_KEY = currentApiKey;
             window.process.env.GEMINI_API_KEY = currentApiKey;
             
+            // Also set in legacy localStorage for backward compatibility
+            localStorage.setItem('user_gemini_api_key', currentApiKey);
+            
             // Notify that API key has been set without forcing a page reload
             console.log('API key has been set successfully');
           }

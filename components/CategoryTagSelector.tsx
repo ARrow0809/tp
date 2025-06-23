@@ -11,6 +11,7 @@ interface TagSelectorProps {
   setActiveCategoryId: (id: string | null) => void;
   // onAddCustomTag: (name: string, categoryId: string) => void; // Removed
   onBulkAddTags: (names: string[], categoryId: string) => void;
+  initialSubCategoryId?: string | null; // 初期表示するサブカテゴリID
 }
 
 const TagSelector: React.FC<TagSelectorProps> = ({
@@ -21,8 +22,9 @@ const TagSelector: React.FC<TagSelectorProps> = ({
   setActiveCategoryId,
   // onAddCustomTag, // Removed
   onBulkAddTags,
+  initialSubCategoryId = null,
 }) => {
-  const [activeSubCategoryId, setActiveSubCategoryId] = useState<string | null>(null);
+  const [activeSubCategoryId, setActiveSubCategoryId] = useState<string | null>(initialSubCategoryId);
   // const [customTagInput, setCustomTagInput] = useState<string>(''); // Removed
   const [bulkTagsInput, setBulkTagsInput] = useState<string>('');
 
@@ -152,7 +154,22 @@ const TagSelector: React.FC<TagSelectorProps> = ({
                   className="w-full h-24 bg-gray-700 border border-gray-600 text-gray-200 text-sm rounded-md focus:ring-teal-500 focus:border-teal-500 p-2.5 custom-scrollbar"
                   placeholder="例: tag1, another tag, 赤いドレス, cyberpunk cityscape"
                 />
-                <button type="submit" className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium rounded-md transition-colors">一括追加</button>
+                <div className="flex gap-2">
+                  <button type="submit" className="flex-1 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium rounded-md transition-colors">一括追加</button>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      if (bulkTagsInput.trim()) {
+                        onBulkAddTags([`enhance:${bulkTagsInput.trim()}`], 'input');
+                        setBulkTagsInput('');
+                      }
+                    }}
+                    className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium rounded-md transition-colors"
+                    title="AIがテキストを分析し、詳細を自動的に補完してカンマ区切りのタグに変換します"
+                  >
+                    プロンプト強化
+                  </button>
+                </div>
               </form>
             </div>
           ) : (

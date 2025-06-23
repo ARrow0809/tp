@@ -5,17 +5,53 @@ import { extractTextFromGeminiResponseStructure } from './geminiHelpers';
 
 let ai: GoogleGenAI | null = null;
 
+// API key storage keys
 const LOCAL_STORAGE_KEY = 'user_gemini_api_key';
+const SECURE_API_KEYS = 'secure_api_keys';
+const SELECTED_API_TYPE = 'selected_api_type';
+
+// Import encryption functions if needed
+import { decrypt } from '../utils/encryption';
 
 const getAiInstance = (): GoogleGenAI => {
-  // localStorageからAPIキーを取得
-  const userApiKey = typeof window !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_KEY) : null;
-  if (!userApiKey) {
+  // Try to get API key from multiple sources
+  let apiKey: string | null = null;
+  
+  // First check if there's a process.env API key (set by ApiKeyManager)
+  if (typeof process !== 'undefined' && process.env && (process.env.API_KEY || process.env.GEMINI_API_KEY)) {
+    apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  }
+  
+  // If no API key from process.env, try the legacy storage
+  if (!apiKey && typeof window !== 'undefined') {
+    apiKey = localStorage.getItem(LOCAL_STORAGE_KEY);
+  }
+  
+  // If still no API key, try the secure storage
+  if (!apiKey && typeof window !== 'undefined') {
+    try {
+      const savedApiKeysEncrypted = localStorage.getItem(SECURE_API_KEYS);
+      const savedSelectedApiType = localStorage.getItem(SELECTED_API_TYPE);
+      
+      if (savedApiKeysEncrypted && savedSelectedApiType) {
+        const decryptedKeys = JSON.parse(decrypt(savedApiKeysEncrypted));
+        if (decryptedKeys && decryptedKeys[savedSelectedApiType]) {
+          apiKey = decryptedKeys[savedSelectedApiType];
+        }
+      }
+    } catch (error) {
+      console.error('Error loading secure API key:', error);
+    }
+  }
+  
+  // If no API key found, throw an error
+  if (!apiKey) {
     alert('エラー: APIキーが設定されていません。設定画面からAPIキーを入力してください。');
     throw new Error("API_KEY（ユーザーAPIキー）が設定されていません。");
   }
-  // インスタンスはAPIキーごとに再生成（ユーザー切替対応）
-  ai = new GoogleGenAI({ apiKey: userApiKey });
+  
+  // Create a new instance with the API key
+  ai = new GoogleGenAI({ apiKey });
   return ai;
 };
 

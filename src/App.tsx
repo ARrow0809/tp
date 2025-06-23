@@ -275,7 +275,68 @@ const App: React.FC = () => {
     let newTagsBatch: Tag[] = [];
     const currentSelectedTagsSnapshot = selectedTags; 
 
-    if (tagNamesFromInput.length > 0 && process.env.API_KEY) {
+    // プロンプト強化機能の処理
+    if (tagNamesFromInput.length === 1 && tagNamesFromInput[0].startsWith('enhance:') && categoryId === 'input') {
+        try {
+            setLoadingMessage('AIによるプロンプト強化処理中...');
+            const textToEnhance = tagNamesFromInput[0].substring('enhance:'.length);
+            
+            // Call Gemini to enhance the prompt
+            const systemInstruction = `あなたはプロンプトエンジニアです。以下のテキストを分析し、AI画像生成に適した詳細なタグに変換してください。
+            複数のタグをカンマ区切りで出力してください。タグは英語で、各タグは簡潔かつ具体的にしてください。
+            出力はタグのリストのみとし、説明や前置き、後書きは含めないでください。`;
+            
+            const enhancedTagsText = await callGemini(textToEnhance, systemInstruction);
+            const enhancedTags = enhancedTagsText
+                .split(',')
+                .map(tag => tag.trim())
+                .filter(tag => tag.length > 0);
+            
+            if (enhancedTags.length > 0) {
+                // Process the enhanced tags normally
+                setLoadingMessage('強化されたタグを処理中...');
+                const translatedJapaneseNames = await translateTagsToJapaneseBulk(enhancedTags);
+                
+                for (let i = 0; i < enhancedTags.length; i++) {
+                    if (currentSelectedTagsSnapshot.length + newTagsBatch.length >= MAX_TOKENS) {
+                        setError(`トークン数の上限 (${MAX_TOKENS}) に達するため、一部のタグのみ処理されます。`);
+                        break;
+                    }
+                    const name = enhancedTags[i];
+                    const japaneseName = translatedJapaneseNames[i] || name;
+                    
+                    const prefix = 'enhanced';
+                    const baseIdPart = name.toLowerCase().replace(/[^a-z0-9\s-]/gi, '').replace(/\s+/g, '_');
+                    const uniqueSuffix = `-${Date.now().toString(36).substring(2,5)}-${i}`;
+                    const newTag: Tag = {
+                        id: `${prefix}-${categoryId}-${baseIdPart}${uniqueSuffix}`,
+                        name: name,
+                        japaneseName: japaneseName,
+                        categoryId: categoryId,
+                        isLocked: false,
+                    };
+                    if (!currentSelectedTagsSnapshot.some(st => st.name.toLowerCase() === newTag.name.toLowerCase() && st.categoryId === categoryId) &&
+                        !newTagsBatch.some(nt => nt.name.toLowerCase() === newTag.name.toLowerCase() && nt.categoryId === categoryId)) {
+                       newTagsBatch.push(newTag);
+                    }
+                }
+            } else {
+                setError('プロンプト強化に失敗しました。タグを抽出できませんでした。');
+            }
+        } catch (err: any) {
+            console.error('プロンプト強化エラー:', err);
+            setError('プロンプト強化に失敗しました。通常のタグとして追加します。');
+            
+            // Fallback: add the original text without the enhance: prefix as a regular tag
+            const originalText = tagNamesFromInput[0].substring('enhance:'.length);
+            tagNamesFromInput = [originalText];
+            // Continue with normal processing below
+        }
+    }
+
+    // 通常のタグ処理
+    if (tagNamesFromInput.length > 0 && process.env.API_KEY && 
+        !(tagNamesFromInput.length === 1 && tagNamesFromInput[0].startsWith('enhance:') && categoryId === 'input')) {
         setLoadingMessage('タグを一括翻訳中...');
         try {
             const translatedJapaneseNames = await translateTagsToJapaneseBulk(tagNamesFromInput);
